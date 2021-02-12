@@ -1,50 +1,60 @@
 import * as http from "http";
 import * as url from "url";
 
+import cryptoRandomString from "crypto-random-string";
+import express from "express";
 import serveHandler from "serve-handler";
 import WebSocket from "ws";
 
 const webSocketPath = "/websocket";
 
-function createServer({port}: {port: number}) {
+interface Meeting {
+    meetingCode: string;
+}
 
-    const server = http.createServer(function (request, response) {
-        serveHandler(request, response, {
-            cleanUrls: false,
-        });
+
+export function createServer({port}: {port: number}) {
+    const app = express();
+
+    app.post("/api/meetings", (request, response) => {
+        const meetingCode = generateMeetingCode();
+        const meeting = {meetingCode: meetingCode};
+        meetings.set(meetingCode, meeting);
+        response.send(meeting);
     });
+    
+    const server = http.createServer(app);
 
     console.log(`Server URI: ws://0.0.0.0:${port}${webSocketPath}`);
 
     const wss = new WebSocket.Server({noServer: true});
 
-    const messages: Array<string> = [];
+    const meetings = new Map<string, Meeting>();
 
-    wss.on("connection", function connection(ws) {
+    wss.on("connection", function connection(ws, request) {
         const intervalId = setInterval(() => {
             ws.ping();
         }, 1000);
 
-        messages.forEach(message => ws.send(message));
+        const meeting = (request as any).meeting as Meeting;
+        
+        ws.send(JSON.stringify(meeting));
 
         ws.on("close", () => {
             clearInterval(intervalId);
         });
 
-        ws.on("message", function incoming(payload) {
-            const message = JSON.stringify({
-                index: messages.length,
-                payload: payload,
-            });
-            messages.push(message);
+        ws.on("message", function incoming(message) {
             wss.clients.forEach((ws) => ws.send(message));
         });
     });
 
     server.on("upgrade", function upgrade(request, socket, head) {
         const requestPath = url.parse(request.url).pathname;
-
-        if (requestPath === webSocketPath) {
+        const result = requestPath && /^\/api\/meetings\/([^\/]+)$/.exec(requestPath);
+        const meeting = result === null ? null : meetings.get(result[1]) ?? null;
+        if (meeting !== null) {
+            request.meeting = meeting;
             wss.handleUpgrade(request, socket, head, function done(ws) {
                 wss.emit("connection", ws, request);
             });
@@ -54,6 +64,14 @@ function createServer({port}: {port: number}) {
     });
 
     server.listen(port);
+
+    return server;
+}
+
+function generateMeetingCode() {
+    const part = () => cryptoRandomString({length: 3, characters: "abcdefghijklmopqrstuvwxyz"});
+
+    return `${part()}-${part()}-${part()}`;
 }
 
 if (require.main === module) {
