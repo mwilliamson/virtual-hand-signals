@@ -7,8 +7,6 @@ import serveHandler from "serve-handler";
 import * as uuid from "uuid";
 import WebSocket from "ws";
 
-const webSocketPath = "/websocket";
-
 interface Meeting {
     meetingCode: string;
     members: Array<Member>;
@@ -56,8 +54,6 @@ export function createServer({port}: {port: number}) {
     });
     
     const server = http.createServer(app);
-
-    console.log(`Server URI: ws://0.0.0.0:${port}${webSocketPath}`);
 
     const wss = new WebSocket.Server({noServer: true});
 
