@@ -99,8 +99,8 @@ export function createServer({port}: {port: number}) {
             clearInterval(intervalId);
         });
 
-        ws.on("message", function incoming(messageString) {
-            const message = JSON.parse(messageString.toString());
+        ws.on("message", function incoming(messageBuffer) {
+            const message = JSON.parse(messageBuffer.toString());
             processMessage(message);
         });
     });
