@@ -4,6 +4,7 @@ import * as url from "url";
 import cryptoRandomString from "crypto-random-string";
 import express from "express";
 import serveHandler from "serve-handler";
+import * as uuid from "uuid";
 import WebSocket from "ws";
 
 const webSocketPath = "/websocket";
@@ -12,6 +13,8 @@ interface Meeting {
     meetingCode: string;
 }
 
+type Message =
+    | {type: "setName", name: string};
 
 export function createServer({port}: {port: number}) {
     const app = express();
@@ -31,21 +34,32 @@ export function createServer({port}: {port: number}) {
 
     const meetings = new Map<string, Meeting>();
 
+    function processMessage(memberId: string, message: Message) {
+        return {...message, memberId: memberId};
+    }
+
     wss.on("connection", function connection(ws, request) {
+        const memberId = uuid.v4();
+    
         const intervalId = setInterval(() => {
             ws.ping();
         }, 1000);
 
         const meeting = (request as any).meeting as Meeting;
         
-        ws.send(JSON.stringify(meeting));
+        ws.send(JSON.stringify({
+            meeting: meeting,
+            memberId: memberId,
+        }));
 
         ws.on("close", () => {
             clearInterval(intervalId);
         });
 
-        ws.on("message", function incoming(message) {
-            wss.clients.forEach((ws) => ws.send(message));
+        ws.on("message", function incoming(messageString) {
+            const message = JSON.parse(messageString.toString());
+            const processedMessage = processMessage(memberId, message);
+            wss.clients.forEach((ws) => ws.send(JSON.stringify(processedMessage)));
         });
     });
 

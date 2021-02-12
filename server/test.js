@@ -20,7 +20,23 @@ exports["POSTing to /api/meetings creates meeting that can be joined"] = withSer
     const webSocket = server.ws(`/api/meetings/${meetingCode}`);
     const message = await webSocket.wait("message");
 
-    assert.strictEqual(meetingCode, JSON.parse(message).meetingCode);
+    assert.strictEqual(meetingCode, message.meeting.meetingCode);
+});
+
+exports["when event is sent to server then server sends processed event to all clients"] = withServer(async (server) => {
+    const {data: {meetingCode}} = await server.postOk("/api/meetings");
+    
+    const webSocket1 = server.ws(`/api/meetings/${meetingCode}`);
+    const {memberId: memberId1} = await webSocket1.wait("message");
+    const webSocket2 = server.ws(`/api/meetings/${meetingCode}`);
+    await webSocket2.wait("message");
+
+    webSocket1.send({type: "setName", name: "Bob"});
+    const message1 = await webSocket1.wait("message");
+    const message2 = await webSocket2.wait("message");
+
+    assert.deepStrictEqual(message1, {type: "setName", memberId: memberId1, name: "Bob"});
+    assert.deepStrictEqual(message2, {type: "setName", memberId: memberId1, name: "Bob"});
 });
 
 async function postOk(url) {
@@ -48,10 +64,14 @@ function wrapWebSocket(ws) {
         }
     }
 
-    ws.on("message", data => storeEvent("message", data));
+    ws.on("message", data => storeEvent("message", JSON.parse(data)));
     ws.on("error", error => storeEvent("error", error));
 
     return {
+        send(message) {
+            ws.send(JSON.stringify(message));
+        },
+    
         wait(eventName) {
             waitingForEvent = eventName;
             return new Promise((promiseResolve, promiseReject) => {
