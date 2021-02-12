@@ -9,15 +9,16 @@ const {createServer} = require("./server");
 const TEST_PORT = 8001;
 
 exports["attempting to non-existent meeting causes connection to be refused"] = withServer(async (server) => {
-    const error = await awaitWsError(server.ws("/api/meetings/abc-def-hij"));
+    const webSocket = await server.ws("/api/meetings/abc-def-hij");
+    const error = await webSocket.wait("error");
 
     assert.strictEqual("ECONNRESET", error.code);
 });
 
 exports["POSTing to /api/meetings creates meeting that can be joined"] = withServer(async (server) => {
     const {data: {meetingCode}} = await server.postOk("/api/meetings");
-    const ws = server.ws(`/api/meetings/${meetingCode}`);
-    const message = await awaitWsMessage(ws);
+    const webSocket = server.ws(`/api/meetings/${meetingCode}`);
+    const message = await webSocket.wait("message");
 
     assert.strictEqual(meetingCode, JSON.parse(message).meetingCode);
 });
@@ -28,20 +29,38 @@ async function postOk(url) {
     return response;
 }
 
-function awaitWsMessage(ws) {
-    return new Promise(resolve => {
-        ws.on("message", data => {
-            resolve(data);
-        })
-    });
-} 
+function wrapWebSocket(ws) {
+    let waitingForEvent = null;
+    let resolve = null;
+    let reject = null;
 
-function awaitWsError(ws) {
-    return new Promise(resolve => {
-        ws.on("error", error => {
-            resolve(error);
-        });
-    });
+    function storeEvent(name, value) {
+        if (name === waitingForEvent) {
+            const r = resolve;
+            waitingForEvent = null;
+            resolve = null;
+            reject = null;
+            r(value);
+        } else if (reject) {
+            reject(new Error(`unexpected ${name} event: ${value}`));
+        } else {
+            // TODO: handle this properly!
+        }
+    }
+
+    ws.on("message", data => storeEvent("message", data));
+    ws.on("error", error => storeEvent("error", error));
+
+    return {
+        wait(eventName) {
+            waitingForEvent = eventName;
+            return new Promise((promiseResolve, promiseReject) => {
+                resolve = promiseResolve;
+                reject = promiseReject;
+            });
+        },
+    };
+            
 }
 
 function withServer(func) {
@@ -58,7 +77,7 @@ function withServer(func) {
                 ws(url) {
                     const webSocket = new WebSocket(`ws://localhost:${TEST_PORT}${url}`);
                     webSockets.push(webSocket);
-                    return webSocket;
+                    return wrapWebSocket(webSocket);
                 },
             });
         } finally {
