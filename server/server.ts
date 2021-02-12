@@ -101,7 +101,7 @@ export function createServer({port}: {port: number}) {
 
         ws.on("message", function incoming(messageString) {
             const message = JSON.parse(messageString.toString());
-            const processedMessage = processMessage(message);
+            processMessage(message);
         });
     });
 
