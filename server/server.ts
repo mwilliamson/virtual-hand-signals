@@ -11,18 +11,47 @@ const webSocketPath = "/websocket";
 
 interface Meeting {
     meetingCode: string;
+    members: Array<Member>;
+}
+
+interface Member {
+    memberId: string;
+    name: string;
+}
+
+function createMeeting(): Meeting {
+    const meetingCode = generateMeetingCode();
+    return {meetingCode: meetingCode, members: []};
+}
+
+function applyUpdate(meeting: Meeting, update: Update): void {
+    if (update.type === "join") {
+        meeting.members.push({memberId: update.memberId, name: update.name});
+    } else if (update.type === "setName") {
+        const member = meeting.members.find(member => member.memberId === update.memberId);
+        if (member === undefined) {
+            throw new Error("no member with memberId: " + update.memberId);
+        }
+        
+        member.name = update.name;
+    } else {
+        assertUnreachable(update, "unhandled update type: " + (update as Update).type);
+    }
 }
 
 type Message =
     | {type: "setName", name: string};
 
+type Update =
+    | {type: "join", memberId: string, name: string}
+    | {type: "setName", memberId: string, name: string};
+
 export function createServer({port}: {port: number}) {
     const app = express();
 
     app.post("/api/meetings", (request, response) => {
-        const meetingCode = generateMeetingCode();
-        const meeting = {meetingCode: meetingCode};
-        meetings.set(meetingCode, meeting);
+        const meeting = createMeeting();
+        meetings.set(meeting.meetingCode, meeting);
         response.send(meeting);
     });
     
@@ -34,10 +63,6 @@ export function createServer({port}: {port: number}) {
 
     const meetings = new Map<string, Meeting>();
 
-    function processMessage(memberId: string, message: Message) {
-        return {...message, memberId: memberId};
-    }
-
     wss.on("connection", function connection(ws, request) {
         const memberId = uuid.v4();
     
@@ -46,20 +71,37 @@ export function createServer({port}: {port: number}) {
         }, 1000);
 
         const meeting = (request as any).meeting as Meeting;
-        
+
         ws.send(JSON.stringify({
+            type: "initial",
             meeting: meeting,
             memberId: memberId,
         }));
 
+        processUpdate({type: "join", memberId: memberId, name: "Anonymous"});
+
+        function send(client: WebSocket, message: unknown): void {
+            client.send(JSON.stringify(message));
+        }
+
+        function processMessage(message: Message): void {
+            // Explicitly include members rather than splatting to avoid including extra properties
+            const update: Update = {type: "setName", memberId: memberId, name: message.name};
+            processUpdate(update);
+        }
+
+        function processUpdate(update: Update): void {
+            applyUpdate(meeting, update);
+            wss.clients.forEach((ws) => send(ws, update));
+        }
+        
         ws.on("close", () => {
             clearInterval(intervalId);
         });
 
         ws.on("message", function incoming(messageString) {
             const message = JSON.parse(messageString.toString());
-            const processedMessage = processMessage(memberId, message);
-            wss.clients.forEach((ws) => ws.send(JSON.stringify(processedMessage)));
+            const processedMessage = processMessage(message);
         });
     });
 
@@ -86,6 +128,10 @@ function generateMeetingCode() {
     const part = () => cryptoRandomString({length: 3, characters: "abcdefghijklmopqrstuvwxyz"});
 
     return `${part()}-${part()}-${part()}`;
+}
+
+function assertUnreachable(value: never, message: string): never {
+    throw new Error(message);
 }
 
 if (require.main === module) {

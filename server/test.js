@@ -10,7 +10,7 @@ const TEST_PORT = 8001;
 
 exports["attempting to non-existent meeting causes connection to be refused"] = withServer(async (server) => {
     const webSocket = await server.ws("/api/meetings/abc-def-hij");
-    const error = await webSocket.wait("error");
+    const error = await webSocket.waitForError();
 
     assert.strictEqual("ECONNRESET", error.code);
 });
@@ -18,25 +18,46 @@ exports["attempting to non-existent meeting causes connection to be refused"] = 
 exports["POSTing to /api/meetings creates meeting that can be joined"] = withServer(async (server) => {
     const {data: {meetingCode}} = await server.postOk("/api/meetings");
     const webSocket = server.ws(`/api/meetings/${meetingCode}`);
-    const message = await webSocket.wait("message");
+    const initial = await webSocket.waitForMessage("initial");
+    const join = await webSocket.waitForMessage("join");
 
-    assert.strictEqual(meetingCode, message.meeting.meetingCode);
+    assert.strictEqual(initial.meeting.meetingCode, meetingCode);
+    assert.deepStrictEqual(join, {type: "join", memberId: initial.memberId, name: "Anonymous"});
 });
 
 exports["when event is sent to server then server sends processed event to all clients"] = withServer(async (server) => {
     const {data: {meetingCode}} = await server.postOk("/api/meetings");
     
     const webSocket1 = server.ws(`/api/meetings/${meetingCode}`);
-    const {memberId: memberId1} = await webSocket1.wait("message");
+    const {memberId: memberId1} = await webSocket1.waitForMessage("initial");
     const webSocket2 = server.ws(`/api/meetings/${meetingCode}`);
-    await webSocket2.wait("message");
+    await webSocket2.waitForMessage("initial");
 
     webSocket1.send({type: "setName", name: "Bob"});
-    const message1 = await webSocket1.wait("message");
-    const message2 = await webSocket2.wait("message");
+    const message1 = await webSocket1.waitForMessage("setName");
+    const message2 = await webSocket2.waitForMessage("setName");
 
     assert.deepStrictEqual(message1, {type: "setName", memberId: memberId1, name: "Bob"});
     assert.deepStrictEqual(message2, {type: "setName", memberId: memberId1, name: "Bob"});
+});
+
+exports["joining client receives current state of meeting"] = withServer(async (server) => {
+    const {data: {meetingCode}} = await server.postOk("/api/meetings");
+    
+    const webSocket1 = server.ws(`/api/meetings/${meetingCode}`);
+    const {memberId: memberId1} = await webSocket1.waitForMessage("initial");
+
+    webSocket1.send({type: "setName", name: "Bob"});
+    
+    const webSocket2 = server.ws(`/api/meetings/${meetingCode}`);
+    const message2 = await webSocket2.waitForMessage("initial");
+
+    assert.deepStrictEqual(
+        message2.meeting.members,
+        [
+            {memberId: memberId1, name: "Bob"},
+        ],
+    );
 });
 
 async function postOk(url) {
@@ -46,22 +67,36 @@ async function postOk(url) {
 }
 
 function wrapWebSocket(ws) {
-    let waitingForEvent = null;
-    let resolve = null;
-    let reject = null;
+    const events = [];
+    let eventIndex = 0;
+    let waiting = null;
 
     function storeEvent(name, value) {
-        if (name === waitingForEvent) {
-            const r = resolve;
-            waitingForEvent = null;
-            resolve = null;
-            reject = null;
-            r(value);
-        } else if (reject) {
-            reject(new Error(`unexpected ${name} event: ${value}`));
-        } else {
-            // TODO: handle this properly!
+        events.push({name, value});
+        if (waiting !== null) {
+            const w = waiting;
+            waiting = null;
+            handleWait(...w);
         }
+    }
+
+    function wait(predicate) {
+        return new Promise((resolve, reject) => {
+            handleWait(predicate, resolve, reject);
+        });
+    }
+
+    function handleWait(predicate, resolve, reject) {
+        while (eventIndex < events.length) {
+            const event = events[eventIndex];
+            eventIndex++;
+
+            if (predicate(event)) {
+                resolve(event.value);
+                return;
+            }
+        }
+        waiting = [predicate, resolve, reject];
     }
 
     ws.on("message", data => storeEvent("message", JSON.parse(data)));
@@ -71,13 +106,13 @@ function wrapWebSocket(ws) {
         send(message) {
             ws.send(JSON.stringify(message));
         },
-    
-        wait(eventName) {
-            waitingForEvent = eventName;
-            return new Promise((promiseResolve, promiseReject) => {
-                resolve = promiseResolve;
-                reject = promiseReject;
-            });
+
+        waitForError() {
+            return wait(event => event.name === "error");
+        },
+
+        waitForMessage(type) {
+            return wait(event => event.name === "message" && event.value.type === type);
         },
     };
             
