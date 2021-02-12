@@ -1,4 +1,5 @@
 const assert = require("assert");
+const util = require("util");
 
 const axios = require("axios");
 const WebSocket = require("ws");
@@ -6,6 +7,12 @@ const WebSocket = require("ws");
 const {createServer} = require("./server");
 
 const TEST_PORT = 8001;
+
+exports["attempting to non-existent meeting causes connection to be refused"] = withServer(async (server) => {
+    const error = await awaitWsError(server.ws("/api/meetings/abc-def-hij"));
+
+    assert.strictEqual("ECONNRESET", error.code);
+});
 
 exports["POSTing to /api/meetings creates meeting that can be joined"] = withServer(async (server) => {
     const {data: {meetingCode}} = await server.postOk("/api/meetings");
@@ -28,6 +35,14 @@ function awaitWsMessage(ws) {
         })
     });
 } 
+
+function awaitWsError(ws) {
+    return new Promise(resolve => {
+        ws.on("error", error => {
+            resolve(error);
+        });
+    });
+}
 
 function withServer(func) {
     return async () => {
