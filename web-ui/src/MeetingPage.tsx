@@ -58,6 +58,11 @@ export default function MeetingPage() {
                         {state.meeting.members.map(member => (
                             <div>
                                 {member.name}
+                                {member.handSignal !== null && (
+                                    <>
+                                        : {member.handSignal}
+                                    </>
+                                )}
                             </div>
                         ))}
                     </Stack>
