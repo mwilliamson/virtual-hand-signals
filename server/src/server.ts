@@ -51,7 +51,11 @@ export function createServer({port}: {port: number}) {
 
         function processMessage(message: ClientMessage): void {
             const update = clientMessageToUpdate(memberId, message);
-            processUpdate(update);
+            if (update === null) {
+                send(ws, ServerMessages.invalid(message));
+            } else {
+                processUpdate(update);
+            }
         }
 
         function processUpdate(update: Update): void {

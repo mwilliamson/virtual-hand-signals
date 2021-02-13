@@ -1,4 +1,5 @@
 import cryptoRandomString from "crypto-random-string";
+import * as t from "io-ts";
 
 import {assertUnreachable} from "./types";
 
@@ -49,7 +50,10 @@ export type Update =
     | {type: "setName", memberId: string, name: string}
     | {type: "setHandSignal", memberId: string, handSignal: string | null};
 
-export type ServerMessage = Update | {type: "initial", memberId: string, meeting: Meeting};
+export type ServerMessage =
+    | Update
+    | {type: "initial", memberId: string, meeting: Meeting}
+    | {type: "invalid", message: unknown};
 
 export const ServerMessages = {
     initial({meeting, memberId}: {meeting: Meeting, memberId: string}): ServerMessage {
@@ -58,6 +62,10 @@ export const ServerMessages = {
             meeting: meeting,
             memberId: memberId,
         };
+    },
+
+    invalid(message: unknown): ServerMessage {
+        return {type: "invalid", message: message};
     },
 
     join({memberId, name = "Anonymous"}: {memberId: string, name?: string}): Update {
@@ -85,13 +93,21 @@ export type ClientMessage =
     | {type: "setName", name: string}
     | {type: "setHandSignal", handSignal: string | null};
 
-export function clientMessageToUpdate(memberId: string, message: ClientMessage): Update {
-    // Explicitly include members rather than splatting to avoid including extra properties
-    if (message.type === "setName") {
-        return {type: "setName", memberId: memberId, name: message.name};
-    } else if (message.type === "setHandSignal") {
-        return {type: "setHandSignal", memberId: memberId, handSignal: message.handSignal};
-    } else {
-        return assertUnreachable(message, "unhandled client message type: " + (message as ClientMessage).type);
+const ClientMessage = t.union([
+    t.type({
+        type: t.literal("setName"),
+        name: t.string,
+    }),
+    t.type({
+        type: t.literal("setHandSignal"),
+        handSignal: t.union([t.string, t.null]),
+    }),
+]);
+
+export function clientMessageToUpdate(memberId: string, message: unknown): Update | null {
+    if (!ClientMessage.is(message)) {
+        return null;
     }
+
+    return {...message, memberId: memberId};
 }

@@ -60,6 +60,17 @@ exports["joining client receives current state of meeting"] = withServer(async (
     );
 });
 
+exports["when client sends invalid message then that client receives invalid message response"] = withServer(async (server) => {
+    const {data: {meetingCode}} = await server.postOk("/api/meetings");
+    
+    const webSocket1 = server.ws(`/api/meetings/${meetingCode}`);
+    await webSocket1.waitForMessage("initial");
+    webSocket1.send({type: "setName", bob: "Bob"});
+    const message1 = await webSocket1.waitForMessage("invalid");
+
+    assert.deepStrictEqual(message1, {type: "invalid", message: {type: "setName", bob: "Bob"}});
+});
+
 async function postOk(url) {
     const response = await axios.post(url);
     assert.strictEqual(200, response.status);

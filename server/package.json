@@ -11,6 +11,8 @@
   "dependencies": {
     "crypto-random-string": "^3.3.1",
     "express": "^4.17.1",
+    "fp-ts": "^2.9.5",
+    "io-ts": "^2.2.14",
     "serve-handler": "^6.1.2",
     "uuid": "^8.0.0",
     "ws": "^7.2.5"
