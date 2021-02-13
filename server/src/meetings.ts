@@ -38,7 +38,7 @@ export const ServerMessages = {
         };
     },
 
-    join({memberId, name}: {memberId: string, name: string}): Update {
+    join({memberId, name = "Anonymous"}: {memberId: string, name?: string}): Update {
         return {type: "join", memberId: memberId, name: name}
     },
 }
