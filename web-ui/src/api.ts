@@ -33,6 +33,8 @@ export async function joinMeeting({meetingCode, onError, onInit, onUpdate}: {
     socket.onerror = () => {
         onError(new Error("failed to connect"));
     };
+
+    // TODO: handle close
 }
 
 export async function startMeeting(): Promise<Meeting> {
