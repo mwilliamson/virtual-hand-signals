@@ -1,7 +1,7 @@
 import cryptoRandomString from "crypto-random-string";
 import { pipe } from "fp-ts/function";
 import { fold } from "fp-ts/Either";
-import { List, updateIn } from "immutable";
+import { OrderedMap, updateIn } from "immutable";
 import * as t from "io-ts";
 
 import * as immutableT from "./immutable-io-ts";
@@ -21,22 +21,22 @@ const Member = t.strict({
 
 export interface Meeting {
     meetingCode: string;
-    members: List<Member>;
+    members: OrderedMap<string, Member>;
 }
 
 const Meeting = t.strict({
     meetingCode: t.string,
-    members: immutableT.list(Member),
+    members: immutableT.orderedMap(t.string, Member),
 });
 
 const Meetings = {
     updateMemberByMemberId(meeting: Meeting, memberId: string, update: (member: Member) => Member): Meeting {
-        const memberIndex = meeting.members.findIndex(member => member.memberId === memberId);
-        if (memberIndex === -1) {
+        const member = meeting.members.get(memberId);
+        if (member === undefined) {
             throw new Error("no member with memberId: " + memberId);
         }
         
-        return updateIn(meeting, ["members", memberIndex], update);
+        return updateIn(meeting, ["members", memberId], update);
     },
 };
 
@@ -51,7 +51,7 @@ export const handSignals = [
 
 export function createMeeting(): Meeting {
     const meetingCode = generateMeetingCode();
-    return {meetingCode: meetingCode, members: List()};
+    return {meetingCode: meetingCode, members: OrderedMap()};
 }
 
 function generateMeetingCode() {
@@ -107,6 +107,10 @@ export const ServerMessage = t.union([
 ]);
 
 export const ServerMessages = {
+    toJson(message: ServerMessage) {
+        return ServerMessage.encode(message);
+    },
+
     initial({meeting, memberId}: {meeting: Meeting, memberId: string}): ServerMessage {
         return {
             type: "initial",
@@ -130,14 +134,18 @@ export const ServerMessages = {
 
 export function applyUpdate(meeting: Meeting, update: Update): Meeting {
     if (update.type === "join") {
+        // TODO: handle multiple joins
         return {
             ...meeting,
-            members: meeting.members.push({memberId: update.memberId, name: update.name, handSignal: null}),
+            members: meeting.members.set(
+                update.memberId,
+                {memberId: update.memberId, name: update.name, handSignal: null},
+            ),
         };
     } else if (update.type === "leave") {
         return {
             ...meeting,
-            members: meeting.members.filter(member => member.memberId !== update.memberId),
+            members: meeting.members.delete(update.memberId),
         };
     } else if (update.type === "setName") {
         return Meetings.updateMemberByMemberId(meeting, update.memberId, member => ({

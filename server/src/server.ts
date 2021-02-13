@@ -50,7 +50,7 @@ export function createServer({port}: {port: number}) {
         processUpdate(ServerMessages.join({memberId}));
 
         function send(client: WebSocket, message: ServerMessage): void {
-            client.send(JSON.stringify(message));
+            client.send(JSON.stringify(ServerMessages.toJson(message)));
         }
 
         function processMessage(message: ClientMessage): void {
