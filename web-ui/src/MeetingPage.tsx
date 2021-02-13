@@ -102,8 +102,8 @@ function ConnectedMeeting(props: ConnectedMeetingProps) {
                 </Center>
 
                 <Stack spacing={2}>
-                    {meeting.members.map(member => (
-                        <div>
+                    {meeting.members.valueSeq().map(member => (
+                        <div key={member.memberId}>
                             {member.name}
                             {member.handSignal !== null && (
                                 <>
