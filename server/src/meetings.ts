@@ -47,7 +47,7 @@ function generateMeetingCode() {
 export type Update =
     | {type: "join", memberId: string, name: string}
     | {type: "setName", memberId: string, name: string}
-    | {type: "setHandSignal", memberId: string, handSignal: string};
+    | {type: "setHandSignal", memberId: string, handSignal: string | null};
 
 export type ServerMessage = Update | {type: "initial", memberId: string, meeting: Meeting};
 
@@ -83,7 +83,7 @@ export function applyUpdate(meeting: Meeting, update: Update): void {
 
 export type ClientMessage =
     | {type: "setName", name: string}
-    | {type: "setHandSignal", handSignal: string};
+    | {type: "setHandSignal", handSignal: string | null};
 
 export function clientMessageToUpdate(memberId: string, message: ClientMessage): Update {
     // Explicitly include members rather than splatting to avoid including extra properties
