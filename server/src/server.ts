@@ -37,10 +37,18 @@ export function createServer({port}: {port: number}) {
     const wss = new WebSocket.Server({noServer: true});
 
     wss.on("connection", function connection(ws, request) {
+        let ponged = true;
+        ws.on("pong", () => ponged = true);
+        
         const memberId = uuid.v4();
     
         const intervalId = setInterval(() => {
-            ws.ping();
+            if (!ponged) {
+                ws.terminate();
+            } else {
+                ponged = false;
+                ws.ping();
+            }
         }, 1000);
 
         const initialMeeting = (request as any).meeting as Meeting;
