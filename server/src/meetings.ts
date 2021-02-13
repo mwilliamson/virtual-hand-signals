@@ -190,6 +190,10 @@ export const ClientMessages = {
     join(name: string): ClientMessage {
         return {type: "join", name: name};
     },
+
+    setHandSignal(handSignal: string | null): ClientMessage {
+        return {type: "setHandSignal", handSignal: handSignal};
+    },
 };
 
 export function clientMessageToUpdate(memberId: string, message: unknown): Update | null {

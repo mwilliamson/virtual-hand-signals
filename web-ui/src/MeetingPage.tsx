@@ -81,10 +81,24 @@ function ConnectedMeeting(props: ConnectedMeetingProps) {
             <JoinForm onJoin={handleJoin} />
         );
     } else {
+        const isHandRaised = meeting.members.get(memberId)?.handSignal != null;
+    
+        const handleRaiseHand = () => {
+            send(ClientMessages.setHandSignal("want to talk"));
+        };
+
+        const handleLowerHand = () => {
+            send(ClientMessages.setHandSignal(null));
+        };
+    
         return (
             <>
                 <Center>
-                    <Button>Raise hand</Button>
+                    {isHandRaised ? (
+                        <Button onClick={handleLowerHand}>Lower hand</Button>
+                    ) : (
+                        <Button onClick={handleRaiseHand}>Raise hand</Button>
+                    )}
                 </Center>
 
                 <Stack spacing={2}>
