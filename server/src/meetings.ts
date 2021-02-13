@@ -1,4 +1,6 @@
 import cryptoRandomString from "crypto-random-string";
+import { pipe } from "fp-ts/function";
+import { fold } from "fp-ts/Either";
 import * as t from "io-ts";
 
 import {assertUnreachable} from "./types";
@@ -94,20 +96,19 @@ export type ClientMessage =
     | {type: "setHandSignal", handSignal: string | null};
 
 const ClientMessage = t.union([
-    t.type({
+    t.strict({
         type: t.literal("setName"),
         name: t.string,
     }),
-    t.type({
+    t.strict({
         type: t.literal("setHandSignal"),
         handSignal: t.union([t.string, t.null]),
     }),
 ]);
 
 export function clientMessageToUpdate(memberId: string, message: unknown): Update | null {
-    if (!ClientMessage.is(message)) {
-        return null;
-    }
-
-    return {...message, memberId: memberId};
+    return pipe(ClientMessage.decode(message), fold(
+        () => null,
+        message => ({...message, memberId: memberId}),
+    ));
 }

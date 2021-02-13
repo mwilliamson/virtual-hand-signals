@@ -71,6 +71,19 @@ exports["when client sends invalid message then that client receives invalid mes
     assert.deepStrictEqual(message1, {type: "invalid", message: {type: "setName", bob: "Bob"}});
 });
 
+exports["when message has extra properties then update strips extra properties"] = withServer(async (server) => {
+    // TODO: should be erroring in this case?
+    // See: https://github.com/gcanti/io-ts/issues/322
+    const {data: {meetingCode}} = await server.postOk("/api/meetings");
+    
+    const webSocket1 = server.ws(`/api/meetings/${meetingCode}`);
+    const {memberId: memberId1} = await webSocket1.waitForMessage("initial");
+    webSocket1.send({type: "setName", name: "Bob", x: 1});
+    const message1 = await webSocket1.waitForMessage("setName");
+
+    assert.deepStrictEqual(message1, {type: "setName", memberId: memberId1, name: "Bob"});
+});
+
 async function postOk(url) {
     const response = await axios.post(url);
     assert.strictEqual(200, response.status);
