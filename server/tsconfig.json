@@ -12,10 +12,11 @@
     "module": "commonjs",
     "moduleResolution": "node",
     "resolveJsonModule": true,
-    "isolatedModules": true
+    "isolatedModules": true,
+    "outDir": "lib"
   },
   "include": [
-    "server.ts",
+    "src",
     "types"
   ]
 }

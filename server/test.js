@@ -4,7 +4,7 @@ const util = require("util");
 const axios = require("axios");
 const WebSocket = require("ws");
 
-const {createServer} = require("./server");
+const {createServer} = require("./lib/server");
 
 const TEST_PORT = 8001;
 
