@@ -19,21 +19,23 @@ import {
 } from "./meetings";
 
 export function createServer({port}: {port: number}) {
+    const meetings = new Map<string, Meeting>();
+
+    const saveMeeting = (meeting: Meeting) => meetings.set(meeting.meetingCode, meeting);
+    
     const app = express();
 
     app.use(cors());
 
     app.post("/api/meetings", (request, response) => {
         const meeting = createMeeting();
-        meetings.set(meeting.meetingCode, meeting);
+        saveMeeting(meeting);
         response.send(meeting);
     });
     
     const server = http.createServer(app);
 
     const wss = new WebSocket.Server({noServer: true});
-
-    const meetings = new Map<string, Meeting>();
 
     wss.on("connection", function connection(ws, request) {
         const memberId = uuid.v4();
@@ -42,9 +44,9 @@ export function createServer({port}: {port: number}) {
             ws.ping();
         }, 1000);
 
-        const meeting = (request as any).meeting as Meeting;
+        const initialMeeting = (request as any).meeting as Meeting;
 
-        send(ws, ServerMessages.initial({meeting, memberId}));
+        send(ws, ServerMessages.initial({meeting: initialMeeting, memberId}));
 
         processUpdate(ServerMessages.join({memberId}));
 
@@ -62,7 +64,10 @@ export function createServer({port}: {port: number}) {
         }
 
         function processUpdate(update: Update): void {
-            applyUpdate(meeting, update);
+            // TODO: Handle undefined meeting
+            const meeting = meetings.get(initialMeeting.meetingCode)!!;
+            const newMeeting = applyUpdate(meeting, update);
+            saveMeeting(newMeeting);
             wss.clients.forEach((ws) => send(ws, update));
         }
         

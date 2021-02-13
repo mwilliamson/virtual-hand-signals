@@ -1,23 +1,24 @@
 import cryptoRandomString from "crypto-random-string";
 import { pipe } from "fp-ts/function";
 import { fold } from "fp-ts/Either";
+import { List, updateIn } from "immutable";
 import * as t from "io-ts";
 
 import {assertUnreachable} from "./types";
 
 export interface Meeting {
     meetingCode: string;
-    members: Array<Member>;
+    members: List<Member>;
 }
 
 const Meetings = {
-    updateMemberByMemberId(meeting: Meeting, memberId: string, update: (member: Member) => void): void {
-        const member = meeting.members.find(member => member.memberId === memberId);
-        if (member === undefined) {
+    updateMemberByMemberId(meeting: Meeting, memberId: string, update: (member: Member) => Member): Meeting {
+        const memberIndex = meeting.members.findIndex(member => member.memberId === memberId);
+        if (memberIndex === -1) {
             throw new Error("no member with memberId: " + memberId);
         }
         
-        update(member);
+        return updateIn(meeting, ["members", memberIndex], update);
     },
 };
 
@@ -38,7 +39,7 @@ const handSignals = [
 
 export function createMeeting(): Meeting {
     const meetingCode = generateMeetingCode();
-    return {meetingCode: meetingCode, members: []};
+    return {meetingCode: meetingCode, members: List()};
 }
 
 function generateMeetingCode() {
@@ -75,19 +76,24 @@ export const ServerMessages = {
     },
 }
 
-export function applyUpdate(meeting: Meeting, update: Update): void {
+export function applyUpdate(meeting: Meeting, update: Update): Meeting {
     if (update.type === "join") {
-        meeting.members.push({memberId: update.memberId, name: update.name, handSignal: null});
+        return {
+            ...meeting,
+            members: meeting.members.push({memberId: update.memberId, name: update.name, handSignal: null}),
+        };
     } else if (update.type === "setName") {
-        Meetings.updateMemberByMemberId(meeting, update.memberId, member => {
-            member.name = update.name;
-        });
+        return Meetings.updateMemberByMemberId(meeting, update.memberId, member => ({
+            ...member,
+            name: update.name,
+        }));
     } else if (update.type === "setHandSignal") {
-        Meetings.updateMemberByMemberId(meeting, update.memberId, member => {
-            member.handSignal = update.handSignal;
-        });
+        return Meetings.updateMemberByMemberId(meeting, update.memberId, member => ({
+            ...member,
+            handSignal: update.handSignal,
+        }));
     } else {
-        assertUnreachable(update, "unhandled update type: " + (update as Update).type);
+        return assertUnreachable(update, "unhandled update type: " + (update as Update).type);
     }
 }
 

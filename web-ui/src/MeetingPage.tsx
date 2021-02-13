@@ -27,9 +27,7 @@ export default function MeetingPage() {
             onUpdate: update => {
                 setState(state => {
                     if (state.type === "connected") {
-                        const newMeeting = state.meeting;
-                        // TODO: switch to immutable updates
-                        applyUpdate(newMeeting, update);
+                        const newMeeting = applyUpdate(state.meeting, update);
                         return {...state, meeting: newMeeting};
                     } else {
                         return state;
