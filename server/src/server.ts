@@ -55,8 +55,6 @@ export function createServer({port}: {port: number}) {
 
         send(ws, ServerMessages.initial({meeting: initialMeeting, memberId}));
 
-        processUpdate(ServerMessages.join({memberId}));
-
         function send(client: WebSocket, message: ServerMessage): void {
             client.send(JSON.stringify(ServerMessages.toJson(message)));
         }

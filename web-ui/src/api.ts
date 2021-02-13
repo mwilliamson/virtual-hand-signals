@@ -1,12 +1,12 @@
 import { pipe } from "fp-ts/function";
 import { fold } from "fp-ts/Either";
 
-import { Meeting, ServerMessage, Update } from "server/lib/meetings";
+import { ClientMessage, ClientMessages, Meeting, ServerMessage, Update } from "server/lib/meetings";
 
 export function joinMeeting({meetingCode, onError, onInit, onUpdate}: {
     meetingCode: string,
     onError: (error: Error) => void,
-    onInit: (meeting: Meeting) => void,
+    onInit: (x: {meeting: Meeting, memberId: string}) => void,
     onUpdate: (update: Update) => void,
 }) {
     const url = `${webSocketProtocol()}//${apiHost()}/api/meetings/${meetingCode}`;
@@ -20,7 +20,7 @@ export function joinMeeting({meetingCode, onError, onInit, onUpdate}: {
             () => {},
             message => {
                 if (message.type === "initial") {
-                    onInit(message.meeting);
+                    onInit(message);
                 } else if (message.type === "invalid") {
                     // TODO: handle this
                 } else {
@@ -37,6 +37,9 @@ export function joinMeeting({meetingCode, onError, onInit, onUpdate}: {
     // TODO: handle close
 
     return {
+        send: (message: ClientMessage) => {
+            socket.send(JSON.stringify(ClientMessages.toJson(message)));
+        },
         close: () => {
             socket.close();
         },

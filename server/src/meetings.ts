@@ -123,7 +123,7 @@ export const ServerMessages = {
         return {type: "invalid", message: message};
     },
 
-    join({memberId, name = "Anonymous"}: {memberId: string, name?: string}): Update {
+    join({memberId, name}: {memberId: string, name: string}): Update {
         return {type: "join", memberId: memberId, name: name}
     },
 
@@ -163,10 +163,15 @@ export function applyUpdate(meeting: Meeting, update: Update): Meeting {
 }
 
 export type ClientMessage =
+    | {type: "join", name: string}
     | {type: "setName", name: string}
     | {type: "setHandSignal", handSignal: string | null};
 
 const ClientMessage = t.union([
+    t.strict({
+        type: t.literal("join"),
+        name: t.string,
+    }),
     t.strict({
         type: t.literal("setName"),
         name: t.string,
@@ -176,6 +181,16 @@ const ClientMessage = t.union([
         handSignal: t.union([t.string, t.null]),
     }),
 ]);
+
+export const ClientMessages = {
+    toJson(message: ClientMessage) {
+        return ClientMessage.encode(message);
+    },
+
+    join(name: string): ClientMessage {
+        return {type: "join", name: name};
+    },
+};
 
 export function clientMessageToUpdate(memberId: string, message: unknown): Update | null {
     return pipe(ClientMessage.decode(message), fold(

@@ -1,13 +1,13 @@
-import { Button, Center, Flex, Stack } from "@chakra-ui/react";
+import { Button, Center, Flex, FormControl, FormLabel, Input, Stack } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
-import { applyUpdate, Meeting } from "server/lib/meetings";
+import { applyUpdate, ClientMessage, ClientMessages, Meeting } from "server/lib/meetings";
 import * as api from "./api";
 
 type State =
     | {type: "connecting"}
-    | {type: "connected", meeting: Meeting}
+    | {type: "connected", meeting: Meeting, memberId: string, send: (message: ClientMessage) => void}
     | {type: "error", error: Error};
 
 export default function MeetingPage() {
@@ -21,8 +21,8 @@ export default function MeetingPage() {
             onError: error => {
                 setState({type: "error", error: error});
             },
-            onInit: meeting => {
-                setState({type: "connected", meeting: meeting});
+            onInit: ({meeting, memberId}) => {
+                setState({type: "connected", meeting: meeting, memberId: memberId, send: connection.send});
             },
             onUpdate: update => {
                 setState(state => {
@@ -53,25 +53,78 @@ export default function MeetingPage() {
                 Meeting code: {meetingCode}
             </Flex>
             {state.type === "connected" && (
-                <>
-                    <Center>
-                        <Button>Raise hand</Button>
-                    </Center>
-
-                    <Stack spacing={2}>
-                        {state.meeting.members.map(member => (
-                            <div>
-                                {member.name}
-                                {member.handSignal !== null && (
-                                    <>
-                                        : {member.handSignal}
-                                    </>
-                                )}
-                            </div>
-                        ))}
-                    </Stack>
-                </>
+                <ConnectedMeeting
+                    meeting={state.meeting}
+                    memberId={state.memberId}
+                    send={message => state.send(message)}
+                />
             )}
         </>
+    );
+}
+
+interface ConnectedMeetingProps {
+    meeting: Meeting;
+    memberId: string;
+    send: (message: ClientMessage) => void;
+}
+
+function ConnectedMeeting(props: ConnectedMeetingProps) {
+    const {meeting, memberId, send} = props;
+
+    if (!meeting.members.has(memberId)) {
+        const handleJoin = (name: string) => {
+            send(ClientMessages.join(name));
+        };
+    
+        return (
+            <JoinForm onJoin={handleJoin} />
+        );
+    } else {
+        return (
+            <>
+                <Center>
+                    <Button>Raise hand</Button>
+                </Center>
+
+                <Stack spacing={2}>
+                    {meeting.members.map(member => (
+                        <div>
+                            {member.name}
+                            {member.handSignal !== null && (
+                                <>
+                                    : {member.handSignal}
+                                </>
+                            )}
+                        </div>
+                    ))}
+                </Stack>
+            </>
+        );
+    }
+}
+
+interface JoinFormProps {
+    onJoin: (name: string) => void;
+}
+
+function JoinForm(props: JoinFormProps) {
+    const {onJoin} = props;
+
+    const [name, setName] = useState("");
+
+    const handleJoin = (event: React.SyntheticEvent) => {
+        event.preventDefault();
+        onJoin(name);
+    };
+    
+    return (
+        <form onSubmit={handleJoin}>
+            <FormControl>
+                <FormLabel>Name</FormLabel>
+                <Input type="text" onChange={event => setName(event.target.value)} value={name} />
+            </FormControl>
+            <Button disabled={name === ""} type="submit">Join</Button>
+        </form>
     );
 }
