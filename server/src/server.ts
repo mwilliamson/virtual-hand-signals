@@ -1,6 +1,7 @@
 import * as http from "http";
 import * as url from "url";
 
+import cors from "cors";
 import express from "express";
 import serveHandler from "serve-handler";
 import * as uuid from "uuid";
@@ -19,6 +20,8 @@ import {
 
 export function createServer({port}: {port: number}) {
     const app = express();
+
+    app.use(cors());
 
     app.post("/api/meetings", (request, response) => {
         const meeting = createMeeting();
