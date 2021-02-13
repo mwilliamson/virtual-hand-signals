@@ -3,7 +3,7 @@ import { fold } from "fp-ts/Either";
 
 import { Meeting, ServerMessage, Update } from "server/lib/meetings";
 
-export async function joinMeeting({meetingCode, onError, onInit, onUpdate}: {
+export function joinMeeting({meetingCode, onError, onInit, onUpdate}: {
     meetingCode: string,
     onError: (error: Error) => void,
     onInit: (meeting: Meeting) => void,
@@ -35,6 +35,12 @@ export async function joinMeeting({meetingCode, onError, onInit, onUpdate}: {
     };
 
     // TODO: handle close
+
+    return {
+        close: () => {
+            socket.close();
+        },
+    };
 }
 
 export async function startMeeting(): Promise<Meeting> {

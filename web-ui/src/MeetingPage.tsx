@@ -16,7 +16,7 @@ export default function MeetingPage() {
     const [state, setState] = useState<State>({type: "connecting"});
 
     useEffect(() => {
-        api.joinMeeting({
+        const connection = api.joinMeeting({
             meetingCode: meetingCode,
             onError: error => {
                 setState({type: "error", error: error});
@@ -35,6 +35,10 @@ export default function MeetingPage() {
                 });
             },
         });
+
+        return () => {
+            connection.close();
+        };
     }, []);
     
     return (
