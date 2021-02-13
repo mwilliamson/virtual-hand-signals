@@ -1,14 +1,50 @@
 import cryptoRandomString from "crypto-random-string";
 import { pipe } from "fp-ts/function";
-import { fold } from "fp-ts/Either";
+import { fold, isLeft } from "fp-ts/Either";
 import { List, updateIn } from "immutable";
 import * as t from "io-ts";
 
 import {assertUnreachable} from "./types";
 
+export interface Member {
+    memberId: string;
+    name: string;
+    handSignal: string | null;
+}
+
+const Member = t.strict({
+    memberId: t.string,
+    name: t.string,
+    handSignal: t.union([t.string, t.null]),
+});
+
 export interface Meeting {
     meetingCode: string;
     members: List<Member>;
+}
+
+const Meeting = t.strict({
+    meetingCode: t.string,
+    members: list(Member),
+});
+
+function list<C extends t.Mixed>(codec: C) {
+    type Item = t.TypeOf<C>;
+    type ItemOutput = t.OutputOf<C>;
+    
+    return new t.Type<List<Item>, Array<ItemOutput>, unknown>(
+        `List<${codec.name}>`,
+        (u: unknown): u is List<Item> => List.isList(u) && u.every(item => codec.is(item)),
+        (u: unknown, context) => {
+            const decodedArray = t.array(codec).validate(u, context);
+            if (isLeft(decodedArray)) {
+                return decodedArray;
+            } else {
+                return t.success(List(decodedArray.right));
+            }
+        },
+        (l) => l.map(codec.encode).toArray(),
+    );
 }
 
 const Meetings = {
@@ -21,12 +57,6 @@ const Meetings = {
         return updateIn(meeting, ["members", memberIndex], update);
     },
 };
-
-export interface Member {
-    memberId: string;
-    name: string;
-    handSignal: string | null;
-}
 
 const handSignals = [
     "agree",
@@ -53,10 +83,41 @@ export type Update =
     | {type: "setName", memberId: string, name: string}
     | {type: "setHandSignal", memberId: string, handSignal: string | null};
 
+export const Update = t.union([
+    t.strict({
+        type: t.literal("join"),
+        memberId: t.string,
+        name: t.string,
+    }),
+    t.strict({
+        type: t.literal("setName"),
+        memberId: t.string,
+        name: t.string,
+    }),
+    t.strict({
+        type: t.literal("setHandSignal"),
+        memberId: t.string,
+        handSignal: t.union([t.string, t.null]),
+    }),
+]);
+
 export type ServerMessage =
     | Update
     | {type: "initial", memberId: string, meeting: Meeting}
     | {type: "invalid", message: unknown};
+
+export const ServerMessage = t.union([
+    Update,
+    t.strict({
+        type: t.literal("initial"),
+        memberId: t.string,
+        meeting: Meeting,
+    }),
+    t.strict({
+        type: t.literal("invalid"),
+        message: t.unknown,
+    }),
+]);
 
 export const ServerMessages = {
     initial({meeting, memberId}: {meeting: Meeting, memberId: string}): ServerMessage {

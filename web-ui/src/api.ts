@@ -1,4 +1,7 @@
-import { applyUpdate, Meeting, ServerMessage, Update } from "../../server/src/meetings";
+import { pipe } from "fp-ts/function";
+import { fold } from "fp-ts/Either";
+
+import { Meeting, ServerMessage, Update } from "server/lib/meetings";
 
 export async function joinMeeting({meetingCode, onError, onInit, onUpdate}: {
     meetingCode: string,
@@ -10,15 +13,21 @@ export async function joinMeeting({meetingCode, onError, onInit, onUpdate}: {
     const socket = new WebSocket(url);
 
     socket.onmessage = event => {
-        // TODO: check server message using io-ts
-        const message = JSON.parse(event.data) as ServerMessage;
-        if (message.type === "initial") {
-            onInit(message.meeting);
-        } else if (message.type === "invalid") {
-            // TODO: handle this
-        } else {
-            onUpdate(message);
-        }
+        // TODO: handle non-JSON message
+        const messageJson = JSON.parse(event.data) as ServerMessage;
+        // TODO: handle decode failure
+        pipe(ServerMessage.decode(messageJson), fold(
+            () => {},
+            message => {
+                if (message.type === "initial") {
+                    onInit(message.meeting);
+                } else if (message.type === "invalid") {
+                    // TODO: handle this
+                } else {
+                    onUpdate(message);
+                }
+            },
+        ));
     };
 
     socket.onerror = () => {
