@@ -23,6 +23,26 @@ function generateMeetingCode() {
     return `${part()}-${part()}-${part()}`;
 }
 
+export type Update =
+    | {type: "join", memberId: string, name: string}
+    | {type: "setName", memberId: string, name: string};
+
+export type ServerMessage = Update | {type: "initial", memberId: string, meeting: Meeting};
+
+export const ServerMessages = {
+    initial({meeting, memberId}: {meeting: Meeting, memberId: string}): ServerMessage {
+        return {
+            type: "initial",
+            meeting: meeting,
+            memberId: memberId,
+        };
+    },
+
+    join({memberId, name}: {memberId: string, name: string}): Update {
+        return {type: "join", memberId: memberId, name: name}
+    },
+}
+
 export function applyUpdate(meeting: Meeting, update: Update): void {
     if (update.type === "join") {
         meeting.members.push({memberId: update.memberId, name: update.name});
@@ -38,9 +58,10 @@ export function applyUpdate(meeting: Meeting, update: Update): void {
     }
 }
 
-export type Message =
+export type ClientMessage =
     | {type: "setName", name: string};
 
-export type Update =
-    | {type: "join", memberId: string, name: string}
-    | {type: "setName", memberId: string, name: string};
+export function clientMessageToUpdate(memberId: string, message: ClientMessage): Update {
+    // Explicitly include members rather than splatting to avoid including extra properties
+    return {type: "setName", memberId: memberId, name: message.name};
+}

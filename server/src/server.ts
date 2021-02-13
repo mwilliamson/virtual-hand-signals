@@ -6,7 +6,16 @@ import serveHandler from "serve-handler";
 import * as uuid from "uuid";
 import WebSocket from "ws";
 
-import {applyUpdate, createMeeting, Meeting, Message, Update} from "./meetings";
+import {
+    applyUpdate,
+    ClientMessage,
+    clientMessageToUpdate,
+    createMeeting,
+    Meeting,
+    ServerMessage,
+    ServerMessages,
+    Update,
+} from "./meetings";
 
 export function createServer({port}: {port: number}) {
     const app = express();
@@ -32,21 +41,16 @@ export function createServer({port}: {port: number}) {
 
         const meeting = (request as any).meeting as Meeting;
 
-        ws.send(JSON.stringify({
-            type: "initial",
-            meeting: meeting,
-            memberId: memberId,
-        }));
+        send(ws, ServerMessages.initial({meeting, memberId}));
 
-        processUpdate({type: "join", memberId: memberId, name: "Anonymous"});
+        processUpdate(ServerMessages.join({memberId, name: "Anonymous"}));
 
-        function send(client: WebSocket, message: unknown): void {
+        function send(client: WebSocket, message: ServerMessage): void {
             client.send(JSON.stringify(message));
         }
 
-        function processMessage(message: Message): void {
-            // Explicitly include members rather than splatting to avoid including extra properties
-            const update: Update = {type: "setName", memberId: memberId, name: message.name};
+        function processMessage(message: ClientMessage): void {
+            const update = clientMessageToUpdate(memberId, message);
             processUpdate(update);
         }
 
