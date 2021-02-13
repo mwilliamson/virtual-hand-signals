@@ -72,6 +72,7 @@ export function createServer({port}: {port: number}) {
         
         ws.on("close", () => {
             clearInterval(intervalId);
+            processUpdate(ServerMessages.leave({memberId}));
         });
 
         ws.on("message", function incoming(messageBuffer) {

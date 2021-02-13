@@ -62,6 +62,7 @@ function generateMeetingCode() {
 
 export type Update =
     | {type: "join", memberId: string, name: string}
+    | {type: "leave", memberId: string}
     | {type: "setName", memberId: string, name: string}
     | {type: "setHandSignal", memberId: string, handSignal: string | null};
 
@@ -70,6 +71,10 @@ export const Update = t.union([
         type: t.literal("join"),
         memberId: t.string,
         name: t.string,
+    }),
+    t.strict({
+        type: t.literal("leave"),
+        memberId: t.string,
     }),
     t.strict({
         type: t.literal("setName"),
@@ -117,6 +122,10 @@ export const ServerMessages = {
     join({memberId, name = "Anonymous"}: {memberId: string, name?: string}): Update {
         return {type: "join", memberId: memberId, name: name}
     },
+
+    leave({memberId}: {memberId: string}): Update {
+        return {type: "leave", memberId: memberId};
+    },
 }
 
 export function applyUpdate(meeting: Meeting, update: Update): Meeting {
@@ -124,6 +133,11 @@ export function applyUpdate(meeting: Meeting, update: Update): Meeting {
         return {
             ...meeting,
             members: meeting.members.push({memberId: update.memberId, name: update.name, handSignal: null}),
+        };
+    } else if (update.type === "leave") {
+        return {
+            ...meeting,
+            members: meeting.members.filter(member => member.memberId !== update.memberId),
         };
     } else if (update.type === "setName") {
         return Meetings.updateMemberByMemberId(meeting, update.memberId, member => ({
