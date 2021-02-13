@@ -1,13 +1,37 @@
-import { Meeting } from "../../server/src/meetings";
+import { applyUpdate, Meeting, ServerMessage, Update } from "../../server/src/meetings";
+
+export async function joinMeeting({meetingCode, onError, onInit, onUpdate}: {
+    meetingCode: string,
+    onError: (error: Error) => void,
+    onInit: (meeting: Meeting) => void,
+    onUpdate: (update: Update) => void,
+}) {
+    const url = `${webSocketProtocol()}//${apiHost()}/api/meetings/${meetingCode}`;
+    const socket = new WebSocket(url);
+
+    socket.onmessage = event => {
+        // TODO: check server message using io-ts
+        const message = JSON.parse(event.data) as ServerMessage;
+        if (message.type === "initial") {
+            onInit(message.meeting);
+        } else if (message.type === "invalid") {
+            // TODO: handle this
+        } else {
+            onUpdate(message);
+        }
+    };
+
+    socket.onerror = () => {
+        onError(new Error("failed to connect"));
+    };
+}
 
 export async function startMeeting(): Promise<Meeting> {
     return postJson<Meeting>("/api/meetings");
 }
 
-async function postJson<T>(url: string): Promise<T> {
-    if (process.env.NODE_ENV === "development") {
-        url = "http://localhost:8000" + url;
-    }
+async function postJson<T>(path: string): Promise<T> {
+    const url = `${httpProtocol()}//${apiHost()}${path}`;
     const response = await fetch(url, {
         method: "POST",
     });
@@ -15,5 +39,21 @@ async function postJson<T>(url: string): Promise<T> {
         return response.json();
     } else {
         throw new Error("response had status code: " + response.status);
+    }
+}
+
+function webSocketProtocol() {
+    return window.location.protocol === "http:" ? "ws:" : "wss:";
+}
+
+function httpProtocol() {
+    return window.location.protocol;
+}
+
+function apiHost() {
+    if (process.env.NODE_ENV === "development") {
+        return "localhost:8000";
+    } else {
+        return window.location.host;
     }
 }
