@@ -55,7 +55,7 @@ exports["joining client receives current state of meeting"] = withServer(async (
     assert.deepStrictEqual(
         message2.meeting.members,
         [
-            {memberId: memberId1, name: "Bob"},
+            {memberId: memberId1, name: "Bob", handSignal: null},
         ],
     );
 });
