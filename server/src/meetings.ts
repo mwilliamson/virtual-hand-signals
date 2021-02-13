@@ -1,6 +1,6 @@
 import cryptoRandomString from "crypto-random-string";
 import { pipe } from "fp-ts/function";
-import { fold, isLeft } from "fp-ts/Either";
+import { fold } from "fp-ts/Either";
 import { List, updateIn } from "immutable";
 import * as t from "io-ts";
 
@@ -40,7 +40,7 @@ const Meetings = {
     },
 };
 
-const handSignals = [
+export const handSignals = [
     "agree",
     "disagree",
     "want to talk",

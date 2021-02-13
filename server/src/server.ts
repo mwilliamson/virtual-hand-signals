@@ -3,7 +3,6 @@ import * as url from "url";
 
 import cors from "cors";
 import express from "express";
-import serveHandler from "serve-handler";
 import * as uuid from "uuid";
 import WebSocket from "ws";
 
