@@ -58,28 +58,14 @@ export default function MeetingPage() {
     
     return (
         <>
-            <Flex
-                color="white"
-                bg="blue.500"
-                padding={2}
-                marginBottom={2}
-                fontWeight="bold"
-                position="sticky"
-                top={0}
-                zIndex={100}
-            >
-                <Container maxWidth="sm">
-                    Meeting code: {meetingCode}
-                </Container>
-            </Flex>
-            {state.type === "connected" && (
-                <Container maxWidth="sm">
-                    <ConnectedMeeting
-                        meeting={state.meeting}
-                        memberId={state.memberId}
-                        send={message => state.send(message)}
-                    />
-                </Container>
+            {state.type === "connected" ? (
+                <ConnectedMeeting
+                    meeting={state.meeting}
+                    memberId={state.memberId}
+                    send={message => state.send(message)}
+                />
+            ) : (
+                <AppBar meetingCode={meetingCode} />
             )}
         </>
     );
@@ -100,42 +86,80 @@ function ConnectedMeeting(props: ConnectedMeetingProps) {
         };
     
         return (
-            <JoinForm onJoin={handleJoin} />
+            <>
+                <Box position="sticky" top={0}>
+                    <AppBar meetingCode={meeting.meetingCode} />
+                </Box>
+                <Container maxWidth="sm">
+                    <JoinForm onJoin={handleJoin} />
+                </Container>
+            </>
         );
     } else {
         return (
             <>
-                <Center>
-                    <HandSignalControl
-                        onChange={value => send(ClientMessages.setHandSignal(value))}
-                        value={meeting.members.get(memberId)?.handSignal ?? null}
-                    />
-                </Center>
+                <Box position="sticky" top={0}>
+                    <AppBar meetingCode={meeting.meetingCode} />
+                    <Center>
+                        <HandSignalControl
+                            onChange={value => send(ClientMessages.setHandSignal(value))}
+                            value={meeting.members.get(memberId)?.handSignal ?? null}
+                        />
+                    </Center>
+                </Box>
 
-                <Stack spacing={2}>
-                    {meeting.members.valueSeq().map(member => (
-                        <Flex key={member.memberId}>
-                            <Box flex="1">
-                                <Box as="span" color="blue.300" mr={2}>
-                                    <PersonIcon />
-                                </Box>
 
-                                {member.name}
-                                {member.memberId === memberId && " (you)"}
-                            </Box>
-                            <div>
-                                {member.handSignal !== null && (
-                                    <Box as="span" bg="gray.100" borderRadius="lg" px={2} py={1} my={-1}>
-                                        {member.handSignal}
+                <Container maxWidth="sm">
+                    <Stack spacing={2}>
+                        {meeting.members.valueSeq().map(member => (
+                            <Flex key={member.memberId}>
+                                <Box flex="1">
+                                    <Box as="span" color="blue.300" mr={2}>
+                                        <PersonIcon />
                                     </Box>
-                                )}
-                            </div>
-                        </Flex>
-                    ))}
-                </Stack>
+
+                                    {member.name}
+                                    {member.memberId === memberId && " (you)"}
+                                </Box>
+                                <div>
+                                    {member.handSignal !== null && (
+                                        <Box as="span" bg="gray.100" borderRadius="lg" px={2} py={1} my={-1}>
+                                            {member.handSignal}
+                                        </Box>
+                                    )}
+                                </div>
+                            </Flex>
+                        ))}
+                    </Stack>
+                </Container>
             </>
         );
     }
+}
+
+interface AppBarProps {
+    meetingCode: string;
+}
+
+function AppBar(props: AppBarProps) {
+    const {meetingCode} = props;
+
+    return (
+        <Flex
+            color="white"
+            bg="blue.500"
+            padding={2}
+            marginBottom={2}
+            fontWeight="bold"
+            position="sticky"
+            top={0}
+            zIndex={100}
+        >
+            <Container maxWidth="sm">
+                Meeting code: {meetingCode}
+            </Container>
+        </Flex>
+    );
 }
 
 interface JoinFormProps {
