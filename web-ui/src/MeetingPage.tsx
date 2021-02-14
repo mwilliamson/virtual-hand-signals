@@ -180,9 +180,9 @@ function HandSignalControl(props: HandSignalControlProps) {
     };
     
     const button = value === null ? (
-        <Button onClick={handleRaiseHandClick}>Raise hand</Button>
+        <Button my={4} onClick={handleRaiseHandClick}>Raise hand</Button>
     ) : (
-        <Button onClick={handleLowerHandClick}>Lower hand</Button>
+        <Button my={4} onClick={handleLowerHandClick}>Lower hand</Button>
     );
 
     return (
