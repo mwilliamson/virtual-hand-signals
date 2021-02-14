@@ -111,19 +111,23 @@ function ConnectedMeeting(props: ConnectedMeetingProps) {
 
                 <Stack spacing={2}>
                     {meeting.members.valueSeq().map(member => (
-                        <div key={member.memberId}>
-                            <Box as="span" color="blue.300" mr={2}>
-                                <PersonIcon />
-                            </Box>
+                        <Flex key={member.memberId}>
+                            <Box flex="1">
+                                <Box as="span" color="blue.300" mr={2}>
+                                    <PersonIcon />
+                                </Box>
 
-                            {member.name}
-                            {member.memberId === memberId && " (you)"}
-                            {member.handSignal !== null && (
-                                <>
-                                    : {member.handSignal}
-                                </>
-                            )}
-                        </div>
+                                {member.name}
+                                {member.memberId === memberId && " (you)"}
+                            </Box>
+                            <div>
+                                {member.handSignal !== null && (
+                                    <Box as="span" bg="gray.100" borderRadius="lg" px={2} py={1} my={-1}>
+                                        {member.handSignal}
+                                    </Box>
+                                )}
+                            </div>
+                        </Flex>
                     ))}
                 </Stack>
             </>
