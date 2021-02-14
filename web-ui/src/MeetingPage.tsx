@@ -86,24 +86,13 @@ function ConnectedMeeting(props: ConnectedMeetingProps) {
             <JoinForm onJoin={handleJoin} />
         );
     } else {
-        const isHandRaised = meeting.members.get(memberId)?.handSignal != null;
-    
-        const handleRaiseHand = () => {
-            send(ClientMessages.setHandSignal("want to talk"));
-        };
-
-        const handleLowerHand = () => {
-            send(ClientMessages.setHandSignal(null));
-        };
-    
         return (
             <>
                 <Center>
-                    {isHandRaised ? (
-                        <Button onClick={handleLowerHand}>Lower hand</Button>
-                    ) : (
-                        <Button onClick={handleRaiseHand}>Raise hand</Button>
-                    )}
+                    <HandSignalControl
+                        onChange={value => send(ClientMessages.setHandSignal(value))}
+                        value={meeting.members.get(memberId)?.handSignal ?? null}
+                    />
                 </Center>
 
                 <Stack spacing={2}>
@@ -151,4 +140,31 @@ function JoinForm(props: JoinFormProps) {
             <Button disabled={name === ""} mt={4} type="submit">Join</Button>
         </form>
     );
+}
+
+interface HandSignalControlProps {
+    onChange: (value: string | null) => void;
+    value: string | null;
+}
+
+function HandSignalControl(props: HandSignalControlProps) {
+    const {onChange, value} = props;
+
+    const handleRaiseHandClick = () => {
+        onChange("want to talk");
+    };
+
+    const handleLowerHandClick = () => {
+        onChange(null);
+    };
+    
+    if (value === null) {
+        return (
+            <Button onClick={handleRaiseHandClick}>Raise hand</Button>
+        );
+    } else {
+        return (
+            <Button onClick={handleLowerHandClick}>Lower hand</Button>
+        );
+    }
 }
