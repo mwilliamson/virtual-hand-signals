@@ -108,7 +108,6 @@ function ConnectedMeeting(props: ConnectedMeetingProps) {
                     </Center>
                 </Box>
 
-
                 <Container maxWidth="sm">
                     <Stack spacing={2}>
                         {meeting.members.valueSeq().map(member => (
@@ -148,7 +147,7 @@ function AppBar(props: AppBarProps) {
         <Flex
             color="white"
             bg="blue.500"
-            padding={2}
+            py={2}
             marginBottom={2}
             fontWeight="bold"
             position="sticky"
