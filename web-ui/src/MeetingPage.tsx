@@ -140,7 +140,7 @@ function JoinForm(props: JoinFormProps) {
         <form onSubmit={handleJoin}>
             <FormControl>
                 <FormLabel>Name</FormLabel>
-                <Input type="text" onChange={event => setName(event.target.value)} value={name} />
+                <Input autoFocus type="text" onChange={event => setName(event.target.value)} value={name} />
             </FormControl>
             <Button disabled={name === ""} mt={4} type="submit">Join</Button>
         </form>
