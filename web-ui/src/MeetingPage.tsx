@@ -222,16 +222,18 @@ function HandSignalControl(props: HandSignalControlProps) {
                 <DrawerOverlay>
                     <DrawerContent>
                         <DrawerBody>
-                            <Stack spacing={2}>
-                                {handSignals.map(handSignal => (
-                                    <Button
-                                        key={handSignal}
-                                        onClick={() => handleSelectHandSignal(handSignal)}
-                                    >
-                                        {handSignal}
-                                    </Button>
-                                ))}
-                            </Stack>
+                            <PageContent>
+                                <Stack spacing={2}>
+                                    {handSignals.map(handSignal => (
+                                        <Button
+                                            key={handSignal}
+                                            onClick={() => handleSelectHandSignal(handSignal)}
+                                        >
+                                            {handSignal}
+                                        </Button>
+                                    ))}
+                                </Stack>
+                            </PageContent>
                         </DrawerBody>
                     </DrawerContent>
                 </DrawerOverlay>
