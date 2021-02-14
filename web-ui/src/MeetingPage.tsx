@@ -1,4 +1,4 @@
-import { Button, Center, Flex, FormControl, FormLabel, Input, Stack } from "@chakra-ui/react";
+import { Button, Center, Container, Flex, FormControl, FormLabel, Input, Stack } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
@@ -50,14 +50,18 @@ export default function MeetingPage() {
                 marginBottom={2}
                 fontWeight="bold"
             >
-                Meeting code: {meetingCode}
+                <Container maxWidth="sm">
+                    Meeting code: {meetingCode}
+                </Container>
             </Flex>
             {state.type === "connected" && (
-                <ConnectedMeeting
-                    meeting={state.meeting}
-                    memberId={state.memberId}
-                    send={message => state.send(message)}
-                />
+                <Container maxWidth="sm">
+                    <ConnectedMeeting
+                        meeting={state.meeting}
+                        memberId={state.memberId}
+                        send={message => state.send(message)}
+                    />
+                </Container>
             )}
         </>
     );
@@ -138,7 +142,7 @@ function JoinForm(props: JoinFormProps) {
                 <FormLabel>Name</FormLabel>
                 <Input type="text" onChange={event => setName(event.target.value)} value={name} />
             </FormControl>
-            <Button disabled={name === ""} type="submit">Join</Button>
+            <Button disabled={name === ""} mt={4} type="submit">Join</Button>
         </form>
     );
 }
