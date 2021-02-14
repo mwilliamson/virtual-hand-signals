@@ -90,9 +90,9 @@ function ConnectedMeeting(props: ConnectedMeetingProps) {
                 <Box position="sticky" top={0}>
                     <AppBar meetingCode={meeting.meetingCode} />
                 </Box>
-                <Container maxWidth="sm">
+                <PageContent>
                     <JoinForm onJoin={handleJoin} />
-                </Container>
+                </PageContent>
             </>
         );
     } else {
@@ -108,7 +108,7 @@ function ConnectedMeeting(props: ConnectedMeetingProps) {
                     </Center>
                 </Box>
 
-                <Container maxWidth="sm">
+                <PageContent>
                     <Stack spacing={2}>
                         {meeting.members.valueSeq().map(member => (
                             <Flex key={member.memberId}>
@@ -130,7 +130,7 @@ function ConnectedMeeting(props: ConnectedMeetingProps) {
                             </Flex>
                         ))}
                     </Stack>
-                </Container>
+                </PageContent>
             </>
         );
     }
@@ -154,9 +154,9 @@ function AppBar(props: AppBarProps) {
             top={0}
             zIndex={100}
         >
-            <Container maxWidth="sm">
+            <PageContent>
                 Meeting code: {meetingCode}
-            </Container>
+            </PageContent>
         </Flex>
     );
 }
@@ -237,5 +237,19 @@ function HandSignalControl(props: HandSignalControlProps) {
                 </DrawerOverlay>
             </Drawer>
         </>
+    );
+}
+
+interface PageContentProps {
+    children: React.ReactNode;
+}
+
+function PageContent(props: PageContentProps) {
+    const {children} = props;
+
+    return (
+        <Container maxWidth="sm">
+            {children}
+        </Container>
     );
 }
