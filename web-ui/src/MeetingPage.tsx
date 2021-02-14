@@ -1,4 +1,5 @@
-import { Button, Center, Container, Flex, FormControl, FormLabel, Input, Stack } from "@chakra-ui/react";
+import { Box, Button, Center, Container, Flex, FormControl, FormLabel, Input, Stack } from "@chakra-ui/react";
+import PersonIcon from "@material-ui/icons/Person";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
@@ -108,6 +109,10 @@ function ConnectedMeeting(props: ConnectedMeetingProps) {
                 <Stack spacing={2}>
                     {meeting.members.valueSeq().map(member => (
                         <div key={member.memberId}>
+                            <Box as="span" color="blue.300" mr={2}>
+                                <PersonIcon />
+                            </Box>
+
                             {member.name}
                             {member.memberId === memberId && " (you)"}
                             {member.handSignal !== null && (
