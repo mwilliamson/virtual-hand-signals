@@ -109,6 +109,7 @@ function ConnectedMeeting(props: ConnectedMeetingProps) {
                     {meeting.members.valueSeq().map(member => (
                         <div key={member.memberId}>
                             {member.name}
+                            {member.memberId === memberId && " (you)"}
                             {member.handSignal !== null && (
                                 <>
                                     : {member.handSignal}
