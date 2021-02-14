@@ -64,6 +64,9 @@ export default function MeetingPage() {
                 padding={2}
                 marginBottom={2}
                 fontWeight="bold"
+                position="sticky"
+                top={0}
+                zIndex={100}
             >
                 <Container maxWidth="sm">
                     Meeting code: {meetingCode}
