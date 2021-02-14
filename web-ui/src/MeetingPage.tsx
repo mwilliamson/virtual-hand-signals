@@ -1,9 +1,23 @@
-import { Box, Button, Center, Container, Flex, FormControl, FormLabel, Input, Stack } from "@chakra-ui/react";
+import {
+    Box,
+    Button,
+    Center,
+    Container,
+    Drawer,
+    DrawerBody,
+    DrawerContent,
+    DrawerOverlay,
+    Flex,
+    FormControl,
+    FormLabel,
+    Input,
+    Stack,
+ } from "@chakra-ui/react";
 import PersonIcon from "@material-ui/icons/Person";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
-import { applyUpdate, ClientMessage, ClientMessages, Meeting } from "server/lib/meetings";
+import { applyUpdate, ClientMessage, ClientMessages, handSignals, Meeting } from "server/lib/meetings";
 import * as api from "./api";
 
 type State =
@@ -150,21 +164,48 @@ interface HandSignalControlProps {
 function HandSignalControl(props: HandSignalControlProps) {
     const {onChange, value} = props;
 
+    const [isDrawerVisible, setIsDrawerVisible] = useState(false);
+
     const handleRaiseHandClick = () => {
-        onChange("want to talk");
+        setIsDrawerVisible(true);
+    };
+
+    const handleSelectHandSignal = (handSignal: string) => {
+        onChange(handSignal);
+        setIsDrawerVisible(false);
     };
 
     const handleLowerHandClick = () => {
         onChange(null);
     };
     
-    if (value === null) {
-        return (
-            <Button onClick={handleRaiseHandClick}>Raise hand</Button>
-        );
-    } else {
-        return (
-            <Button onClick={handleLowerHandClick}>Lower hand</Button>
-        );
-    }
+    const button = value === null ? (
+        <Button onClick={handleRaiseHandClick}>Raise hand</Button>
+    ) : (
+        <Button onClick={handleLowerHandClick}>Lower hand</Button>
+    );
+
+    return (
+        <>
+            {button}
+            <Drawer placement="top" isOpen={isDrawerVisible} onClose={() => setIsDrawerVisible(false)}>
+                <DrawerOverlay>
+                    <DrawerContent>
+                        <DrawerBody>
+                            <Stack spacing={2}>
+                                {handSignals.map(handSignal => (
+                                    <Button
+                                        key={handSignal}
+                                        onClick={() => handleSelectHandSignal(handSignal)}
+                                    >
+                                        {handSignal}
+                                    </Button>
+                                ))}
+                            </Stack>
+                        </DrawerBody>
+                    </DrawerContent>
+                </DrawerOverlay>
+            </Drawer>
+        </>
+    );
 }
