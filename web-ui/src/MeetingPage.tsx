@@ -10,9 +10,21 @@ import {
     Flex,
     FormControl,
     FormLabel,
+    IconButton,
     Input,
+    Menu,
+    MenuButton,
+    MenuItem,
+    MenuList,
+    Modal,
+    ModalBody,
+    ModalCloseButton,
+    ModalContent,
+    ModalHeader,
+    ModalOverlay,
     Stack,
  } from "@chakra-ui/react";
+import MoreVertIcon from "@material-ui/icons/MoreVert";
 import PersonIcon from "@material-ui/icons/Person";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
@@ -80,7 +92,9 @@ interface ConnectedMeetingProps {
 function ConnectedMeeting(props: ConnectedMeetingProps) {
     const {meeting, memberId, send} = props;
 
-    if (!meeting.members.has(memberId)) {
+    const member = meeting.members.get(memberId);
+
+    if (member === undefined) {
         const handleJoin = (name: string) => {
             send(ClientMessages.join(name));
         };
@@ -99,7 +113,12 @@ function ConnectedMeeting(props: ConnectedMeetingProps) {
         return (
             <>
                 <Box position="sticky" top={0}>
-                    <AppBar meetingCode={meeting.meetingCode} />
+                    <AppBar
+                        meetingCode={meeting.meetingCode}
+                        right={
+                            <SettingsMenuButton name={member.name} send={send} />
+                        }
+                    />
                     <Center>
                         <HandSignalControl
                             onChange={value => send(ClientMessages.setHandSignal(value))}
@@ -138,13 +157,14 @@ function ConnectedMeeting(props: ConnectedMeetingProps) {
 
 interface AppBarProps {
     meetingCode: string;
+    right?: React.ReactNode;
 }
 
 function AppBar(props: AppBarProps) {
-    const {meetingCode} = props;
+    const {meetingCode, right} = props;
 
     return (
-        <Flex
+        <Box
             color="white"
             bg="blue.500"
             py={2}
@@ -155,9 +175,66 @@ function AppBar(props: AppBarProps) {
             zIndex={100}
         >
             <PageContent>
-                Meeting code: {meetingCode}
+                <Flex>
+                    <Box flex="1 1 auto">
+                        Meeting code: {meetingCode}
+                    </Box>
+                    {right && (
+                        <Box>{right}</Box>
+                    )}
+                </Flex>
             </PageContent>
-        </Flex>
+        </Box>
+    );
+}
+
+interface SettingsMenuButtonProps {
+    name: string;
+    send: (message: ClientMessage) => void;
+}
+
+function SettingsMenuButton(props: SettingsMenuButtonProps) {
+    const {name, send} = props;
+
+    const [changeName, setChangeName] = useState(false);
+
+    function handleChangeName(newName: string) {
+        send(ClientMessages.setName(newName));
+        setChangeName(false);
+    }
+
+    return (
+        <>
+            <Modal isOpen={changeName} onClose={() => setChangeName(false)}>
+                <ModalOverlay />
+                <ModalContent>
+                    <ModalHeader>Change name</ModalHeader>
+                    <ModalCloseButton />
+                    <ModalBody>
+                        <NameForm
+                            initialValue={name}
+                            onSubmit={handleChangeName}
+                            submitText="Change name"
+                        />
+                    </ModalBody>
+                </ModalContent>
+            </Modal>
+            <Menu>
+                <MenuButton
+                    display="block"
+                    as={IconButton}
+                    icon={<MoreVertIcon />}
+                    variant="unstyled"
+                    size="xs"
+                    aria-label="Settings"
+                />
+                <MenuList color="black">
+                    <MenuItem onClick={() => setChangeName(true)}>
+                        Change name
+                    </MenuItem>
+                </MenuList>
+            </Menu>
+        </>
     );
 }
 
@@ -167,22 +244,49 @@ interface JoinFormProps {
 
 function JoinForm(props: JoinFormProps) {
     const {onJoin} = props;
+    
+    return (
+        <NameForm initialValue="" onSubmit={name => onJoin(name)} submitText="Join" />
+    );
+}
 
-    const [name, setName] = useState("");
+interface NameFormProps {
+    initialValue: string;
+    onSubmit: (name: string) => void;
+    submitText: string;
+}
+
+function NameForm(props: NameFormProps) {
+    const {initialValue, onSubmit, submitText} = props;
+
+    const [name, setName] = useState(initialValue);
 
     const handleJoin = (event: React.SyntheticEvent) => {
         event.preventDefault();
-        onJoin(name);
+        onSubmit(name);
     };
     
     return (
         <form onSubmit={handleJoin}>
-            <FormControl>
-                <FormLabel>Name</FormLabel>
-                <Input autoFocus type="text" onChange={event => setName(event.target.value)} value={name} />
-            </FormControl>
-            <Button disabled={name === ""} mt={4} type="submit">Join</Button>
+            <NameControl onChange={name => setName(name)} value={name} />
+            <Button disabled={name === ""} mt={4} type="submit">{submitText}</Button>
         </form>
+    );
+}
+
+interface NameControlProps {
+    onChange: (value: string) => void;
+    value: string;
+}
+
+function NameControl(props: NameControlProps) {
+    const {onChange, value} = props;
+
+    return (
+        <FormControl>
+            <FormLabel>Name</FormLabel>
+            <Input autoFocus type="text" onChange={event => onChange(event.target.value)} value={value} />
+        </FormControl>
     );
 }
 

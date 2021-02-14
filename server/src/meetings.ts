@@ -191,6 +191,10 @@ export const ClientMessages = {
         return {type: "join", name: name};
     },
 
+    setName(name: string): ClientMessage {
+        return {type: "setName", name: name};
+    },
+
     setHandSignal(handSignal: string | null): ClientMessage {
         return {type: "setHandSignal", handSignal: handSignal};
     },
