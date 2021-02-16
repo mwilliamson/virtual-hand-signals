@@ -29,7 +29,7 @@ export function createServer({port}: {port: number}) {
     app.post("/api/meetings", (request, response) => {
         const meeting = createMeeting();
         saveMeeting(meeting);
-        response.send(meeting);
+        response.send(Meeting.encode(meeting));
     });
 
     app.get("/api/meetings/:meetingCode", (request, response) => {
@@ -38,7 +38,7 @@ export function createServer({port}: {port: number}) {
         if (meeting === undefined) {
             response.status(404).send();
         } else {
-            response.send(meeting);
+            response.send(Meeting.encode(meeting));
         }
     });
 

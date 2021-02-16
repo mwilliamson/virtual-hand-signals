@@ -24,7 +24,7 @@ export interface Meeting {
     members: OrderedMap<string, Member>;
 }
 
-const Meeting = t.strict({
+export const Meeting = t.strict({
     meetingCode: t.string,
     members: immutableT.orderedMap(t.string, Member),
 });
@@ -35,7 +35,7 @@ const Meetings = {
         if (member === undefined) {
             throw new Error("no member with memberId: " + memberId);
         }
-        
+
         return updateIn(meeting, ["members", memberId], update);
     },
 };

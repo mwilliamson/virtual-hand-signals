@@ -1,5 +1,6 @@
 import { pipe } from "fp-ts/function";
-import { fold } from "fp-ts/Either";
+import { fold, isLeft } from "fp-ts/Either";
+import { PathReporter } from "io-ts/PathReporter";
 
 import { ClientMessage, ClientMessages, Meeting, ServerMessage, Update } from "server/lib/meetings";
 
@@ -7,9 +8,8 @@ export async function fetchMeetingByMeetingCode(meetingCode: string): Promise<Me
     const url = buildHttpUrl(`/api/meetings/${meetingCode}`);
     const response = await fetch(url);
     if (response.status === 200) {
-        // TODO: decode response with io-ts
-        const meeting: Meeting = await response.json();
-        return meeting;
+        const json = await response.json();
+        return decodeMeetingJson(json);
     } else if (response.status === 404) {
         return null;
     } else {
@@ -61,7 +61,17 @@ export function joinMeeting({meetingCode, onError, onInit, onUpdate}: {
 }
 
 export async function startMeeting(): Promise<Meeting> {
-    return postJson<Meeting>("/api/meetings");
+    const json = await postJson<Meeting>("/api/meetings");
+    return decodeMeetingJson(json);
+}
+
+function decodeMeetingJson(json: unknown): Meeting {
+    const result = Meeting.decode(json);
+    if (isLeft(result)) {
+        throw new Error(PathReporter.report(result).join("\n"));
+    } else {
+        return result.right;
+    }
 }
 
 async function postJson<T>(path: string): Promise<T> {

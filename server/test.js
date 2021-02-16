@@ -28,7 +28,7 @@ exports["POSTing to /api/meetings creates meeting that can be GETed"] = withServ
 
    assert.strictEqual(response.status, 200);
    assert.deepStrictEqual(response.data.meetingCode, meetingCode);
-   assert.deepStrictEqual(response.data.members, {});
+   assert.deepStrictEqual(response.data.members, []);
 });
 
 exports["POSTing to /api/meetings creates meeting that can be joined"] = withServer(async (server) => {
