@@ -25,6 +25,7 @@ import { useLocation, useParams } from "react-router-dom";
 
 import { applyUpdate, ClientMessage, ClientMessages, handSignals, Meeting, Member } from "server/lib/meetings";
 import * as api from "./api";
+import { useErrorReporter } from "./errors";
 import * as localStorage from "./localStorage";
 import { JoinMeetingHistoryState, useNavigation } from "./navigation";
 import PageContentContainer from "./PageContentContainer";
@@ -38,12 +39,20 @@ export default function MeetingPage() {
     const {meetingCode} = useParams<{meetingCode: string}>();
 
     const [state, setState] = useState<State>({type: "connecting"});
+    const errorReporter = useErrorReporter();
+
+    // TODO: handle error state
 
     useEffect(() => {
         const connection = api.joinMeeting({
             meetingCode: meetingCode,
             onError: error => {
                 setState({type: "error", error: error});
+            },
+            onInvalidMessage: message => {
+                errorReporter.unexpectedError({
+                    error: new Error(`sent invalid message: ${JSON.stringify(message)}`),
+                });
             },
             onInit: ({meeting, memberId}) => {
                 setState({type: "connected", meeting: meeting, memberId: memberId, send: connection.send});

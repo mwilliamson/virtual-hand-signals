@@ -17,9 +17,10 @@ export async function fetchMeetingByMeetingCode(meetingCode: string): Promise<Me
     }
 }
 
-export function joinMeeting({meetingCode, onError, onInit, onUpdate}: {
+export function joinMeeting({meetingCode, onError, onInvalidMessage, onInit, onUpdate}: {
     meetingCode: string,
     onError: (error: Error) => void,
+    onInvalidMessage: (message: unknown) => void,
     onInit: (x: {meeting: Meeting, memberId: string}) => void,
     onUpdate: (update: Update) => void,
 }) {
@@ -36,7 +37,7 @@ export function joinMeeting({meetingCode, onError, onInit, onUpdate}: {
                 if (message.type === "initial") {
                     onInit(message);
                 } else if (message.type === "invalid") {
-                    // TODO: handle this
+                    onInvalidMessage(message.message);
                 } else {
                     onUpdate(message);
                 }

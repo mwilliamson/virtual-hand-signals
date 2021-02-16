@@ -13,7 +13,7 @@ export function useErrorReporter() {
         });
     };
 
-    const unexpectedError = ({title, error: err}: {title: string, error: Error}) => {
+    const unexpectedError = ({title = "Something's gone wrong", error: err}: {title?: string, error: Error}) => {
         console.error(err);
         error({title, description: "An unexpected error has been encountered"});
     };
