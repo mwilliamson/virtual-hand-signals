@@ -1,5 +1,6 @@
 import { pipe } from "fp-ts/function";
-import { fold, isLeft } from "fp-ts/Either";
+import { fold, isLeft, Left } from "fp-ts/Either";
+import * as t from "io-ts";
 import { PathReporter } from "io-ts/PathReporter";
 
 import { ClientMessage, ClientMessages, Meeting, ServerMessage, Update } from "server/lib/meetings";
@@ -30,21 +31,27 @@ export function joinMeeting({meetingCode, onFatal, onError, onInit, onUpdate}: {
     // TODO: handle meeting doesn't exist (change server to allow connection and send appropriate message?)
 
     socket.onmessage = event => {
-        // TODO: handle non-JSON message
-        const messageJson = JSON.parse(event.data) as ServerMessage;
-        // TODO: handle decode failure
-        pipe(ServerMessage.decode(messageJson), fold(
-            () => {},
-            message => {
-                if (message.type === "initial") {
-                    onInit(message);
-                } else if (message.type === "invalid") {
-                    onError(new Error(`sent invalid message: ${JSON.stringify(message.message)}`));
-                } else {
-                    onUpdate(message);
-                }
-            },
-        ));
+        let messageJson: unknown;
+        try {
+            messageJson = JSON.parse(event.data);
+        } catch (error) {
+            onError(error);
+            return;
+        }
+
+        const decodeResult = ServerMessage.decode(messageJson);
+        if (isLeft(decodeResult)) {
+            onError(decodeResultToError(decodeResult));
+        } else {
+            const message = decodeResult.right;
+            if (message.type === "initial") {
+                onInit(message);
+            } else if (message.type === "invalid") {
+                onError(new Error(`sent invalid message: ${JSON.stringify(message.message)}`));
+            } else {
+                onUpdate(message);
+            }
+        }
     };
 
     socket.onerror = () => {
@@ -71,10 +78,14 @@ export async function startMeeting(): Promise<Meeting> {
 function decodeMeetingJson(json: unknown): Meeting {
     const result = Meeting.decode(json);
     if (isLeft(result)) {
-        throw new Error(PathReporter.report(result).join("\n"));
+        throw decodeResultToError(result);
     } else {
         return result.right;
     }
+}
+
+function decodeResultToError(result: Left<t.Errors>): Error {
+    return new Error(PathReporter.report(result).join("\n"));
 }
 
 async function postJson<T>(path: string): Promise<T> {
