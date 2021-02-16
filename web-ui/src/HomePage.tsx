@@ -66,10 +66,30 @@ function JoinMeetingForm() {
 
     const navigation = useNavigation();
 
-    const handleSubmit = (event: React.SyntheticEvent) => {
+    const toast = useToast();
+
+    const handleSubmit = async (event: React.SyntheticEvent) => {
+        // TODO: handle errors
         event.preventDefault();
-        // TODO: check meeting exists
-        navigation.joinMeeting(meetingCode.trim(), {name: name});
+
+        const trimmedMeetingCode = meetingCode.trim();
+
+        const meeting = await api.fetchMeetingByMeetingCode(trimmedMeetingCode);
+        if (meeting === null) {
+            toast({
+                title: "Could not find meeting",
+                description: (
+                    <>
+                        There doesn't seem to be a meeting with the code <strong>{trimmedMeetingCode}</strong>.
+                    </>
+                ),
+                status: "error",
+                isClosable: true,
+                duration: null,
+            });
+        } else {
+            navigation.joinMeeting(trimmedMeetingCode, {name: name});
+        }
     };
 
     return (

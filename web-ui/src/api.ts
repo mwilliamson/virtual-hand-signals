@@ -3,13 +3,27 @@ import { fold } from "fp-ts/Either";
 
 import { ClientMessage, ClientMessages, Meeting, ServerMessage, Update } from "server/lib/meetings";
 
+export async function fetchMeetingByMeetingCode(meetingCode: string): Promise<Meeting | null> {
+    const url = buildHttpUrl(`/api/meetings/${meetingCode}`);
+    const response = await fetch(url);
+    if (response.status === 200) {
+        // TODO: decode response with io-ts
+        const meeting: Meeting = await response.json();
+        return meeting;
+    } else if (response.status === 404) {
+        return null;
+    } else {
+        throw new Error("response had status code: " + response.status);
+    }
+}
+
 export function joinMeeting({meetingCode, onError, onInit, onUpdate}: {
     meetingCode: string,
     onError: (error: Error) => void,
     onInit: (x: {meeting: Meeting, memberId: string}) => void,
     onUpdate: (update: Update) => void,
 }) {
-    const url = `${webSocketProtocol()}//${apiHost()}/api/meetings/${meetingCode}`;
+    const url = buildUrl(webSocketProtocol(), `/api/meetings/${meetingCode}`);
     const socket = new WebSocket(url);
 
     socket.onmessage = event => {
@@ -51,7 +65,7 @@ export async function startMeeting(): Promise<Meeting> {
 }
 
 async function postJson<T>(path: string): Promise<T> {
-    const url = `${httpProtocol()}//${apiHost()}${path}`;
+    const url = buildHttpUrl(path);
     const response = await fetch(url, {
         method: "POST",
     });
@@ -60,6 +74,14 @@ async function postJson<T>(path: string): Promise<T> {
     } else {
         throw new Error("response had status code: " + response.status);
     }
+}
+
+function buildHttpUrl(path: string) {
+    return buildUrl(httpProtocol(), path);
+}
+
+function buildUrl(protocol: string, path: string) {
+    return `${protocol}//${apiHost()}${path}`;
 }
 
 function webSocketProtocol() {
