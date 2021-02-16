@@ -16,12 +16,6 @@ import {
     MenuButton,
     MenuItem,
     MenuList,
-    Modal,
-    ModalBody,
-    ModalCloseButton,
-    ModalContent,
-    ModalHeader,
-    ModalOverlay,
     Stack,
  } from "@chakra-ui/react";
 import MoreVertIcon from "@material-ui/icons/MoreVert";
@@ -141,25 +135,43 @@ interface MeetingPageJoinedProps {
 
 function MeetingPageJoined(props: MeetingPageJoinedProps) {
     const {meeting, member, send} = props;
+
+    const [changeName, setChangeName] = useState(false);
+
+    function handleChangeName(newName: string) {
+        send(ClientMessages.setName(newName));
+        setChangeName(false);
+    }
+
     return (
         <>
             <Box position="sticky" top={0}>
                 <AppBar
                     meetingCode={meeting.meetingCode}
                     right={
-                        <SettingsMenuButton name={member.name} send={send} />
+                        <SettingsMenuButton onChangeName={() => setChangeName(true)} />
                     }
                 />
-                <Center>
-                    <HandSignalControl
-                        onChange={value => send(ClientMessages.setHandSignal(value))}
-                        value={member.handSignal ?? null}
-                    />
-                </Center>
+                {!changeName && (
+                    <Center>
+                        <HandSignalControl
+                            onChange={value => send(ClientMessages.setHandSignal(value))}
+                            value={member.handSignal ?? null}
+                        />
+                    </Center>
+                )}
             </Box>
 
             <PageContent>
-                <MembersList meeting={meeting} memberId={member.memberId} />
+                {changeName ? (
+                    <NameForm
+                        initialValue={member.name}
+                        onSubmit={handleChangeName}
+                        submitText="Change name"
+                    />
+                ) : (
+                    <MembersList meeting={meeting} memberId={member.memberId} />
+                )}
             </PageContent>
         </>
     );
@@ -199,60 +211,37 @@ function AppBar(props: AppBarProps) {
 }
 
 interface SettingsMenuButtonProps {
-    name: string;
-    send: (message: ClientMessage) => void;
+    onChangeName: () => void;
 }
 
 function SettingsMenuButton(props: SettingsMenuButtonProps) {
-    const {name, send} = props;
+    const {onChangeName} = props;
 
-    const [changeName, setChangeName] = useState(false);
     const history = useHistory();
-
-    function handleChangeName(newName: string) {
-        send(ClientMessages.setName(newName));
-        setChangeName(false);
-    }
 
     function handleLeave() {
         history.push("/");
     }
 
     return (
-        <>
-            <Modal isOpen={changeName} onClose={() => setChangeName(false)}>
-                <ModalOverlay />
-                <ModalContent>
-                    <ModalHeader>Change name</ModalHeader>
-                    <ModalCloseButton />
-                    <ModalBody>
-                        <NameForm
-                            initialValue={name}
-                            onSubmit={handleChangeName}
-                            submitText="Change name"
-                        />
-                    </ModalBody>
-                </ModalContent>
-            </Modal>
-            <Menu placement="bottom-end">
-                <MenuButton
-                    display="block"
-                    as={IconButton}
-                    icon={<MoreVertIcon />}
-                    variant="unstyled"
-                    size="xs"
-                    aria-label="Settings"
-                />
-                <MenuList color="black">
-                    <MenuItem onClick={() => setChangeName(true)}>
-                        Change name
-                    </MenuItem>
-                    <MenuItem onClick={handleLeave}>
-                        Leave meeting
-                    </MenuItem>
-                </MenuList>
-            </Menu>
-        </>
+        <Menu placement="bottom-end">
+            <MenuButton
+                display="block"
+                as={IconButton}
+                icon={<MoreVertIcon />}
+                variant="unstyled"
+                size="xs"
+                aria-label="Settings"
+            />
+            <MenuList color="black">
+                <MenuItem onClick={() => onChangeName()}>
+                    Change name
+                </MenuItem>
+                <MenuItem onClick={handleLeave}>
+                    Leave meeting
+                </MenuItem>
+            </MenuList>
+        </Menu>
     );
 }
 
