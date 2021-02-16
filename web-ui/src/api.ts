@@ -27,6 +27,7 @@ export function joinMeeting({meetingCode, onFatal, onError, onInit, onUpdate}: {
 }) {
     const url = buildUrl(webSocketProtocol(), `/api/meetings/${meetingCode}`);
     const socket = new WebSocket(url);
+    let open = false;
 
     // TODO: handle meeting doesn't exist (change server to allow connection and send appropriate message?)
 
@@ -58,13 +59,23 @@ export function joinMeeting({meetingCode, onFatal, onError, onInit, onUpdate}: {
         onFatal(new Error("failed to connect"));
     };
 
-    // TODO: handle close
+    socket.onopen = () => {
+        open = true;
+    };
+
+    socket.onclose = () => {
+        if (open) {
+            onFatal(new Error("WebSocket was closed"));
+            open = false;
+        }
+    };
 
     return {
         send: (message: ClientMessage) => {
             socket.send(JSON.stringify(ClientMessages.toJson(message)));
         },
         close: () => {
+            open = false;
             socket.close();
         },
     };
