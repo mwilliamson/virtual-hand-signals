@@ -17,10 +17,10 @@ export async function fetchMeetingByMeetingCode(meetingCode: string): Promise<Me
     }
 }
 
-export function joinMeeting({meetingCode, onError, onInvalidMessage, onInit, onUpdate}: {
+export function joinMeeting({meetingCode, onFatal, onError, onInit, onUpdate}: {
     meetingCode: string,
+    onFatal: (error: Error) => void,
     onError: (error: Error) => void,
-    onInvalidMessage: (message: unknown) => void,
     onInit: (x: {meeting: Meeting, memberId: string}) => void,
     onUpdate: (update: Update) => void,
 }) {
@@ -39,7 +39,7 @@ export function joinMeeting({meetingCode, onError, onInvalidMessage, onInit, onU
                 if (message.type === "initial") {
                     onInit(message);
                 } else if (message.type === "invalid") {
-                    onInvalidMessage(message.message);
+                    onError(new Error(`sent invalid message: ${JSON.stringify(message.message)}`));
                 } else {
                     onUpdate(message);
                 }
@@ -48,7 +48,7 @@ export function joinMeeting({meetingCode, onError, onInvalidMessage, onInit, onU
     };
 
     socket.onerror = () => {
-        onError(new Error("failed to connect"));
+        onFatal(new Error("failed to connect"));
     };
 
     // TODO: handle close

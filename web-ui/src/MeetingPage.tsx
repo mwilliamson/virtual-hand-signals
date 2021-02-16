@@ -45,13 +45,11 @@ export default function MeetingPage() {
     useEffect(() => {
         const connection = api.joinMeeting({
             meetingCode: meetingCode,
-            onError: error => {
+            onFatal: error => {
                 setState({type: "error", error: error});
             },
-            onInvalidMessage: message => {
-                errorReporter.unexpectedError({
-                    error: new Error(`sent invalid message: ${JSON.stringify(message)}`),
-                });
+            onError: error => {
+                errorReporter.unexpectedError({error: error});
             },
             onInit: ({meeting, memberId}) => {
                 setState({type: "connected", meeting: meeting, memberId: memberId, send: connection.send});
