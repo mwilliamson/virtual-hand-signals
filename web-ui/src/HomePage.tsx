@@ -5,20 +5,19 @@ import {
     FormControl,
     FormLabel,
     Input,
-    useToast,
  } from "@chakra-ui/react";
 import { useState } from "react";
 
 import { Meeting } from "../../server/lib/meetings";
 import * as api from "./api";
+import { useErrorReporter } from "./errors";
 import { useNavigation } from "./navigation";
 import PageContentContainer from "./PageContentContainer";
 
 export default function HomePage() {
     const navigation = useNavigation();
 
-    const [error, setError] = useState<Error | null>(null);
-    const toast = useToast();
+    const errorReporter = useErrorReporter();
 
     const [joiningMeeting, setJoiningMeeting] = useState(false);
 
@@ -27,13 +26,9 @@ export default function HomePage() {
         try {
             meeting = await api.startMeeting();
         } catch (error) {
-            console.error(error);
-            setError(error);
-            toast({
+            errorReporter.unexpectedError({
                 title: "Could not start meeting",
-                status: "error",
-                isClosable: true,
-                duration: null,
+                error: error,
             });
             return;
         }
@@ -66,7 +61,7 @@ function JoinMeetingForm() {
 
     const navigation = useNavigation();
 
-    const toast = useToast();
+    const errorReporter = useErrorReporter();
 
     const handleSubmit = async (event: React.SyntheticEvent) => {
         event.preventDefault();
@@ -77,27 +72,21 @@ function JoinMeetingForm() {
         try {
             meeting = await api.fetchMeetingByMeetingCode(trimmedMeetingCode);
         } catch (error) {
-            toast({
-                title: "Something's gone wrong",
-                description: "An unexpected error has been encountered",
-                status: "error",
-                isClosable: true,
-                duration: null,
+            errorReporter.unexpectedError({
+                title: "Could not join meeting",
+                error: error,
             });
             return;
         }
 
         if (meeting === null) {
-            toast({
+            errorReporter.error({
                 title: "Could not find meeting",
                 description: (
                     <>
                         There doesn't seem to be a meeting with the code <strong>{trimmedMeetingCode}</strong>.
                     </>
                 ),
-                status: "error",
-                isClosable: true,
-                duration: null,
             });
         } else {
             navigation.joinMeeting(trimmedMeetingCode, {name: name});
