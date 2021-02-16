@@ -24,6 +24,7 @@ import { useEffect, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
 
 import { applyUpdate, ClientMessage, ClientMessages, handSignals, Meeting, Member } from "server/lib/meetings";
+import { assertUnreachable } from "server/lib/types";
 import * as api from "./api";
 import { useErrorReporter } from "./errors";
 import * as localStorage from "./localStorage";
@@ -40,8 +41,6 @@ export default function MeetingPage() {
 
     const [state, setState] = useState<State>({type: "connecting"});
     const errorReporter = useErrorReporter();
-
-    // TODO: handle error state
 
     useEffect(() => {
         const connection = api.joinMeeting({
@@ -74,19 +73,31 @@ export default function MeetingPage() {
         };
     }, []);
 
-    return (
-        <>
-            {state.type === "connected" ? (
-                <MeetingPageConnected
-                    meeting={state.meeting}
-                    memberId={state.memberId}
-                    send={message => state.send(message)}
-                />
-            ) : (
+    if (state.type === "connecting") {
+        return (
+            <AppBar meetingCode={meetingCode} />
+        );
+    } else if (state.type === "error") {
+        // TODO: render error properly
+        return (
+            <>
                 <AppBar meetingCode={meetingCode} />
-            )}
-        </>
-    );
+                <PageContentContainer>
+                    Error
+                </PageContentContainer>
+            </>
+        );
+    } else if (state.type === "connected") {
+        return (
+            <MeetingPageConnected
+                meeting={state.meeting}
+                memberId={state.memberId}
+                send={message => state.send(message)}
+            />
+        );
+    } else {
+        return assertUnreachable(state, `unhandled state type: ${(state as State).type}`);
+    }
 }
 
 interface MeetingPageConnectedProps {
