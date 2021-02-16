@@ -25,6 +25,7 @@ import { useHistory, useParams } from "react-router-dom";
 
 import { applyUpdate, ClientMessage, ClientMessages, handSignals, Meeting, Member } from "server/lib/meetings";
 import * as api from "./api";
+import PageContentContainer from "./PageContentContainer";
 
 type State =
     | {type: "connecting"}
@@ -120,9 +121,9 @@ function MeetingPageJoining(props: MeetingPageJoiningProps) {
             <Box position="sticky" top={0}>
                 <AppBar meetingCode={meeting.meetingCode} />
             </Box>
-            <PageContent>
+            <PageContentContainer>
                 <JoinForm onJoin={handleJoin} />
-            </PageContent>
+            </PageContentContainer>
         </>
     );
 }
@@ -162,7 +163,7 @@ function MeetingPageJoined(props: MeetingPageJoinedProps) {
                 )}
             </Box>
 
-            <PageContent>
+            <PageContentContainer>
                 {changeName ? (
                     <NameForm
                         initialValue={member.name}
@@ -172,7 +173,7 @@ function MeetingPageJoined(props: MeetingPageJoinedProps) {
                 ) : (
                     <MembersList meeting={meeting} memberId={member.memberId} />
                 )}
-            </PageContent>
+            </PageContentContainer>
         </>
     );
 }
@@ -196,7 +197,7 @@ function AppBar(props: AppBarProps) {
             top={0}
             zIndex={100}
         >
-            <PageContent>
+            <PageContentContainer>
                 <Flex>
                     <Box flex="1 1 auto">
                         Meeting code: {meetingCode}
@@ -205,7 +206,7 @@ function AppBar(props: AppBarProps) {
                         <Box>{right}</Box>
                     )}
                 </Flex>
-            </PageContent>
+            </PageContentContainer>
         </Box>
     );
 }
@@ -333,7 +334,7 @@ function HandSignalControl(props: HandSignalControlProps) {
                 <DrawerOverlay>
                     <DrawerContent>
                         <DrawerBody>
-                            <PageContent>
+                            <PageContentContainer>
                                 <Stack spacing={2}>
                                     {handSignals.map(handSignal => (
                                         <Button
@@ -344,7 +345,7 @@ function HandSignalControl(props: HandSignalControlProps) {
                                         </Button>
                                     ))}
                                 </Stack>
-                            </PageContent>
+                            </PageContentContainer>
                         </DrawerBody>
                     </DrawerContent>
                 </DrawerOverlay>
@@ -383,19 +384,5 @@ function MembersList(props: MembersListProps) {
                 </Flex>
             ))}
         </Stack>
-    );
-}
-
-interface PageContentProps {
-    children: React.ReactNode;
-}
-
-function PageContent(props: PageContentProps) {
-    const {children} = props;
-
-    return (
-        <Container maxWidth="sm">
-            {children}
-        </Container>
     );
 }
