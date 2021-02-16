@@ -8,11 +8,27 @@ const {createServer} = require("./lib/server");
 
 const TEST_PORT = 8001;
 
-exports["attempting to non-existent meeting causes connection to be refused"] = withServer(async (server) => {
+exports["attempting to get non-existent meeting causes 404"] = withServer(async (server) => {
+   const response = await server.get("/api/meetings/abc-def-hij");
+
+   assert.strictEqual(response.status, 404);
+});
+
+exports["attempting to connect non-existent meeting causes connection to be refused"] = withServer(async (server) => {
     const webSocket = await server.ws("/api/meetings/abc-def-hij");
     const error = await webSocket.waitForError();
 
     assert.strictEqual("ECONNRESET", error.code);
+});
+
+exports["POSTing to /api/meetings creates meeting that can be GETed"] = withServer(async (server) => {
+    const {data: {meetingCode}} = await server.postOk("/api/meetings");
+
+   const response = await server.get(`/api/meetings/${meetingCode}`);
+
+   assert.strictEqual(response.status, 200);
+   assert.deepStrictEqual(response.data.meetingCode, meetingCode);
+   assert.deepStrictEqual(response.data.members, {});
 });
 
 exports["POSTing to /api/meetings creates meeting that can be joined"] = withServer(async (server) => {
@@ -152,6 +168,10 @@ function withServer(func) {
 
         try {
             await func({
+                get(url) {
+                    return axios.get(`http://localhost:${TEST_PORT}${url}`, {validateStatus: null});
+                },
+
                 async postOk(url) {
                     return postOk(`http://localhost:${TEST_PORT}${url}`);
                 },

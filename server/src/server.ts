@@ -32,6 +32,16 @@ export function createServer({port}: {port: number}) {
         response.send(meeting);
     });
 
+    app.get("/api/meetings/:meetingCode", (request, response) => {
+        const {meetingCode} = request.params;
+        const meeting = meetings.get(meetingCode);
+        if (meeting === undefined) {
+            response.status(404).send();
+        } else {
+            response.send(meeting);
+        }
+    });
+
     const server = http.createServer(app);
 
     const wss = new WebSocket.Server({noServer: true});
