@@ -112,6 +112,7 @@ interface MeetingPageJoiningProps {
 }
 
 function MeetingPageJoining(props: MeetingPageJoiningProps) {
+    // TODO: store previously used name
     const {meeting, send} = props;
 
     const handleJoin = (name: string) => {
