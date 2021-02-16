@@ -61,7 +61,6 @@ export default function HomePage() {
 }
 
 function JoinMeetingForm() {
-    // TODO: set name here as well
     const [meetingCode, setMeetingCode] = useState("");
 
     const navigation = useNavigation();
@@ -75,7 +74,7 @@ function JoinMeetingForm() {
     return (
         <form onSubmit={handleSubmit}>
             <FormControl>
-                <FormLabel>Name</FormLabel>
+                <FormLabel>Meeting code</FormLabel>
                 <Input
                     autoFocus
                     type="text"
