@@ -21,11 +21,13 @@ import {
 import MoreVertIcon from "@material-ui/icons/MoreVert";
 import PersonIcon from "@material-ui/icons/Person";
 import { useEffect, useState } from "react";
-import { useHistory, useParams } from "react-router-dom";
+import { useHistory, useLocation, useParams } from "react-router-dom";
 
 import { applyUpdate, ClientMessage, ClientMessages, handSignals, Meeting, Member } from "server/lib/meetings";
 import * as api from "./api";
+import { JoinMeetingHistoryState } from "./navigation";
 import PageContentContainer from "./PageContentContainer";
+import useOnFirstRender from "./useOnFirstRender";
 
 type State =
     | {type: "connecting"}
@@ -116,16 +118,30 @@ function MeetingPageJoining(props: MeetingPageJoiningProps) {
         send(ClientMessages.join(name));
     };
 
-    return (
-        <>
-            <Box position="sticky" top={0}>
-                <AppBar meetingCode={meeting.meetingCode} />
-            </Box>
-            <PageContentContainer>
-                <JoinForm onJoin={handleJoin} />
-            </PageContentContainer>
-        </>
-    );
+    const location = useLocation();
+
+    const state = location.state as JoinMeetingHistoryState;
+
+    useEffect(() => {
+        if (state !== undefined) {
+            handleJoin(state.name);
+        }
+    }, [state]);
+
+    if (state !== undefined) {
+        return null;
+    } else {
+        return (
+            <>
+                <Box position="sticky" top={0}>
+                    <AppBar meetingCode={meeting.meetingCode} />
+                </Box>
+                <PageContentContainer>
+                    <JoinForm onJoin={handleJoin} />
+                </PageContentContainer>
+            </>
+        );
+    }
 }
 
 interface MeetingPageJoinedProps {

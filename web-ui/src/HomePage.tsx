@@ -7,11 +7,11 @@ import {
     Input,
     useToast,
  } from "@chakra-ui/react";
-import { useHistory } from "react-router-dom";
 import { useState } from "react";
 
 import { Meeting } from "../../server/lib/meetings";
 import * as api from "./api";
+import { useNavigation } from "./navigation";
 import PageContentContainer from "./PageContentContainer";
 
 export default function HomePage() {
@@ -61,14 +61,16 @@ export default function HomePage() {
 }
 
 function JoinMeetingForm() {
+    // TODO: strip whitespace from meeting code
     const [meetingCode, setMeetingCode] = useState("");
+    const [name, setName] = useState("");
 
     const navigation = useNavigation();
 
     const handleSubmit = (event: React.SyntheticEvent) => {
         event.preventDefault();
         // TODO: check meeting exists
-        navigation.joinMeeting(meetingCode);
+        navigation.joinMeeting(meetingCode, {name: name});
     };
 
     return (
@@ -82,17 +84,15 @@ function JoinMeetingForm() {
                     value={meetingCode}
                 />
             </FormControl>
-            <Button disabled={meetingCode === ""} mt={4} type="submit">Join</Button>
+            <FormControl>
+                <FormLabel>Name</FormLabel>
+                <Input
+                    type="text"
+                    onChange={event => setName(event.target.value)}
+                    value={name}
+                />
+            </FormControl>
+            <Button disabled={meetingCode === "" || name === ""} mt={4} type="submit">Join</Button>
         </form>
     );
-}
-
-function useNavigation() {
-    const history = useHistory();
-
-    return {
-        joinMeeting(meetingCode: string) {
-            history.push(`/meetings/${meetingCode}`);
-        },
-    };
 }
