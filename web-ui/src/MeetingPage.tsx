@@ -71,7 +71,7 @@ export default function MeetingPage() {
     return (
         <>
             {state.type === "connected" ? (
-                <ConnectedMeeting
+                <MeetingPageConnected
                     meeting={state.meeting}
                     memberId={state.memberId}
                     send={message => state.send(message)}
@@ -83,13 +83,13 @@ export default function MeetingPage() {
     );
 }
 
-interface ConnectedMeetingProps {
+interface MeetingPageConnectedProps {
     meeting: Meeting;
     memberId: string;
     send: (message: ClientMessage) => void;
 }
 
-function ConnectedMeeting(props: ConnectedMeetingProps) {
+function MeetingPageConnected(props: MeetingPageConnectedProps) {
     const {meeting, memberId, send} = props;
 
     const member = meeting.members.get(memberId);
@@ -100,39 +100,69 @@ function ConnectedMeeting(props: ConnectedMeetingProps) {
         };
 
         return (
-            <>
-                <Box position="sticky" top={0}>
-                    <AppBar meetingCode={meeting.meetingCode} />
-                </Box>
-                <PageContent>
-                    <JoinForm onJoin={handleJoin} />
-                </PageContent>
-            </>
+            <MeetingPageJoining meeting={meeting} send={send} />
         );
     } else {
         return (
-            <>
-                <Box position="sticky" top={0}>
-                    <AppBar
-                        meetingCode={meeting.meetingCode}
-                        right={
-                            <SettingsMenuButton name={member.name} send={send} />
-                        }
-                    />
-                    <Center>
-                        <HandSignalControl
-                            onChange={value => send(ClientMessages.setHandSignal(value))}
-                            value={meeting.members.get(memberId)?.handSignal ?? null}
-                        />
-                    </Center>
-                </Box>
-
-                <PageContent>
-                    <MembersList meeting={meeting} memberId={memberId} />
-                </PageContent>
-            </>
+            <MeetingPageJoined meeting={meeting} member={member} send={send} />
         );
     }
+}
+
+interface MeetingPageJoiningProps {
+    meeting: Meeting;
+    send: (message: ClientMessage) => void;
+}
+
+function MeetingPageJoining(props: MeetingPageJoiningProps) {
+    const {meeting, send} = props;
+
+    const handleJoin = (name: string) => {
+        send(ClientMessages.join(name));
+    };
+
+    return (
+        <>
+            <Box position="sticky" top={0}>
+                <AppBar meetingCode={meeting.meetingCode} />
+            </Box>
+            <PageContent>
+                <JoinForm onJoin={handleJoin} />
+            </PageContent>
+        </>
+    );
+}
+
+interface MeetingPageJoinedProps {
+    meeting: Meeting;
+    member: Member;
+    send: (message: ClientMessage) => void;
+}
+
+function MeetingPageJoined(props: MeetingPageJoinedProps) {
+    const {meeting, member, send} = props;
+    return (
+        <>
+            <Box position="sticky" top={0}>
+                <AppBar
+                    meetingCode={meeting.meetingCode}
+                    right={
+                        <SettingsMenuButton name={member.name} send={send} />
+                    }
+                />
+                <Center>
+                    <HandSignalControl
+                        onChange={value => send(ClientMessages.setHandSignal(value))}
+                        value={member.handSignal ?? null}
+                    />
+                </Center>
+            </Box>
+
+            <PageContent>
+                <MembersList meeting={meeting} memberId={member.memberId} />
+            </PageContent>
+        </>
+    );
 }
 
 interface AppBarProps {
