@@ -27,7 +27,7 @@ import {
 import MoreVertIcon from "@material-ui/icons/MoreVert";
 import PersonIcon from "@material-ui/icons/Person";
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useHistory, useParams } from "react-router-dom";
 
 import { applyUpdate, ClientMessage, ClientMessages, handSignals, Meeting } from "server/lib/meetings";
 import * as api from "./api";
@@ -197,10 +197,15 @@ function SettingsMenuButton(props: SettingsMenuButtonProps) {
     const {name, send} = props;
 
     const [changeName, setChangeName] = useState(false);
+    const history = useHistory();
 
     function handleChangeName(newName: string) {
         send(ClientMessages.setName(newName));
         setChangeName(false);
+    }
+
+    function handleLeave() {
+        history.push("/");
     }
 
     return (
@@ -231,6 +236,9 @@ function SettingsMenuButton(props: SettingsMenuButtonProps) {
                 <MenuList color="black">
                     <MenuItem onClick={() => setChangeName(true)}>
                         Change name
+                    </MenuItem>
+                    <MenuItem onClick={handleLeave}>
+                        Leave meeting
                     </MenuItem>
                 </MenuList>
             </Menu>
