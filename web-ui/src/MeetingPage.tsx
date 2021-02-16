@@ -26,7 +26,7 @@ import { useLocation, useParams } from "react-router-dom";
 import { applyUpdate, ClientMessage, ClientMessages, handSignals, Meeting, Member } from "server/lib/meetings";
 import { assertUnreachable } from "server/lib/types";
 import * as api from "./api";
-import { useErrorReporter } from "./errors";
+import { UnexpectedErrorAlert, useErrorReporter } from "./errors";
 import * as localStorage from "./localStorage";
 import { JoinMeetingHistoryState, useNavigation } from "./navigation";
 import PageContentContainer from "./PageContentContainer";
@@ -78,12 +78,11 @@ export default function MeetingPage() {
             <AppBar meetingCode={meetingCode} />
         );
     } else if (state.type === "error") {
-        // TODO: render error properly
         return (
             <>
                 <AppBar meetingCode={meetingCode} />
                 <PageContentContainer>
-                    Error
+                    <UnexpectedErrorAlert error={state.error} />
                 </PageContentContainer>
             </>
         );
