@@ -29,7 +29,7 @@ import PersonIcon from "@material-ui/icons/Person";
 import { useEffect, useState } from "react";
 import { useHistory, useParams } from "react-router-dom";
 
-import { applyUpdate, ClientMessage, ClientMessages, handSignals, Meeting } from "server/lib/meetings";
+import { applyUpdate, ClientMessage, ClientMessages, handSignals, Meeting, Member } from "server/lib/meetings";
 import * as api from "./api";
 
 type State =
@@ -128,27 +128,7 @@ function ConnectedMeeting(props: ConnectedMeetingProps) {
                 </Box>
 
                 <PageContent>
-                    <Stack spacing={2}>
-                        {meeting.members.valueSeq().map(member => (
-                            <Flex key={member.memberId}>
-                                <Box flex="1">
-                                    <Box as="span" color="blue.300" mr={2}>
-                                        <PersonIcon />
-                                    </Box>
-
-                                    {member.name}
-                                    {member.memberId === memberId && " (you)"}
-                                </Box>
-                                <div>
-                                    {member.handSignal !== null && (
-                                        <Box as="span" bg="gray.100" borderRadius="lg" px={2} py={1} my={-1}>
-                                            {member.handSignal}
-                                        </Box>
-                                    )}
-                                </div>
-                            </Flex>
-                        ))}
-                    </Stack>
+                    <MembersList meeting={meeting} memberId={memberId} />
                 </PageContent>
             </>
         );
@@ -351,6 +331,39 @@ function HandSignalControl(props: HandSignalControlProps) {
                 </DrawerOverlay>
             </Drawer>
         </>
+    );
+}
+
+interface MembersListProps {
+    meeting: Meeting;
+    memberId: string;
+}
+
+function MembersList(props: MembersListProps) {
+    const {meeting, memberId} = props;
+
+    return (
+        <Stack spacing={2}>
+            {meeting.members.valueSeq().map(member => (
+                <Flex key={member.memberId}>
+                    <Box flex="1">
+                        <Box as="span" color="blue.300" mr={2}>
+                            <PersonIcon />
+                        </Box>
+
+                        {member.name}
+                        {member.memberId === memberId && " (you)"}
+                    </Box>
+                    <div>
+                        {member.handSignal !== null && (
+                            <Box as="span" bg="gray.100" borderRadius="lg" px={2} py={1} my={-1}>
+                                {member.handSignal}
+                            </Box>
+                        )}
+                    </div>
+                </Flex>
+            ))}
+        </Stack>
     );
 }
 
