@@ -27,6 +27,8 @@ export function joinMeeting({meetingCode, onError, onInvalidMessage, onInit, onU
     const url = buildUrl(webSocketProtocol(), `/api/meetings/${meetingCode}`);
     const socket = new WebSocket(url);
 
+    // TODO: handle meeting doesn't exist (change server to allow connection and send appropriate message?)
+
     socket.onmessage = event => {
         // TODO: handle non-JSON message
         const messageJson = JSON.parse(event.data) as ServerMessage;
