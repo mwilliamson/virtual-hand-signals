@@ -1,4 +1,12 @@
-import { Button, ButtonGroup, Center, useToast } from "@chakra-ui/react";
+import {
+    Button,
+    ButtonGroup,
+    Center,
+    FormControl,
+    FormLabel,
+    Input,
+    useToast,
+ } from "@chakra-ui/react";
 import { useHistory } from "react-router-dom";
 import { useState } from "react";
 
@@ -6,10 +14,12 @@ import { Meeting } from "../../server/lib/meetings";
 import * as api from "./api";
 
 export default function HomePage() {
-    const history = useHistory();
+    const navigation = useNavigation();
 
     const [error, setError] = useState<Error | null>(null);
     const toast = useToast();
+
+    const [joiningMeeting, setJoiningMeeting] = useState(false);
 
     async function handleStartMeeting() {
         let meeting: Meeting;
@@ -26,15 +36,62 @@ export default function HomePage() {
             });
             return;
         }
-        history.push(`/meetings/${meeting.meetingCode}`);
+        navigation.joinMeeting(meeting.meetingCode);
+    }
+
+    function handleJoinMeetingClick() {
+        setJoiningMeeting(true);
     }
 
     return (
         <Center width="100vw" height="100vh">
-            <ButtonGroup>
-                <Button onClick={handleStartMeeting}>Start meeting</Button>
-                <Button>Join meeting</Button>
-            </ButtonGroup>
+            {!joiningMeeting ? (
+                <ButtonGroup>
+                    <Button onClick={handleStartMeeting}>Start meeting</Button>
+                    <Button onClick={handleJoinMeetingClick}>Join meeting</Button>
+                </ButtonGroup>
+            ) : (
+                <JoinMeetingForm />
+            )}
         </Center>
     );
+}
+
+function JoinMeetingForm() {
+    // TODO: consistent width with meeting page
+    // TODO: set name here as well
+    const [meetingCode, setMeetingCode] = useState("");
+
+    const navigation = useNavigation();
+
+    const handleSubmit = (event: React.SyntheticEvent) => {
+        event.preventDefault();
+        // TODO: check meeting exists
+        navigation.joinMeeting(meetingCode);
+    };
+
+    return (
+        <form onSubmit={handleSubmit}>
+            <FormControl>
+                <FormLabel>Name</FormLabel>
+                <Input
+                    autoFocus
+                    type="text"
+                    onChange={event => setMeetingCode(event.target.value)}
+                    value={meetingCode}
+                />
+            </FormControl>
+            <Button disabled={meetingCode === ""} mt={4} type="submit">Join</Button>
+        </form>
+    );
+}
+
+function useNavigation() {
+    const history = useHistory();
+
+    return {
+        joinMeeting(meetingCode: string) {
+            history.push(`/meetings/${meetingCode}`);
+        },
+    };
 }
