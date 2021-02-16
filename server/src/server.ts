@@ -21,7 +21,7 @@ export function createServer({port}: {port: number}) {
     const meetings = new Map<string, Meeting>();
 
     const saveMeeting = (meeting: Meeting) => meetings.set(meeting.meetingCode, meeting);
-    
+
     const app = express();
 
     app.use(cors());
@@ -31,7 +31,7 @@ export function createServer({port}: {port: number}) {
         saveMeeting(meeting);
         response.send(meeting);
     });
-    
+
     const server = http.createServer(app);
 
     const wss = new WebSocket.Server({noServer: true});
@@ -39,9 +39,9 @@ export function createServer({port}: {port: number}) {
     wss.on("connection", function connection(ws, request) {
         let ponged = true;
         ws.on("pong", () => ponged = true);
-        
+
         const memberId = uuid.v4();
-    
+
         const intervalId = setInterval(() => {
             if (!ponged) {
                 ws.terminate();
@@ -75,7 +75,7 @@ export function createServer({port}: {port: number}) {
             saveMeeting(newMeeting);
             wss.clients.forEach((ws) => send(ws, update));
         }
-        
+
         ws.on("close", () => {
             clearInterval(intervalId);
             processUpdate(ServerMessages.leave({memberId}));

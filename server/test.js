@@ -18,70 +18,74 @@ exports["attempting to non-existent meeting causes connection to be refused"] = 
 exports["POSTing to /api/meetings creates meeting that can be joined"] = withServer(async (server) => {
     const {data: {meetingCode}} = await server.postOk("/api/meetings");
     const webSocket = server.ws(`/api/meetings/${meetingCode}`);
+
     const initial = await webSocket.waitForMessage("initial");
+    webSocket.send({type: "join", name: "Bob"});
     const join = await webSocket.waitForMessage("join");
 
     assert.strictEqual(initial.meeting.meetingCode, meetingCode);
-    assert.deepStrictEqual(join, {type: "join", memberId: initial.memberId, name: "Anonymous"});
+    assert.deepStrictEqual(join, {type: "join", memberId: initial.memberId, name: "Bob"});
 });
 
 exports["when event is sent to server then server sends processed event to all clients"] = withServer(async (server) => {
     const {data: {meetingCode}} = await server.postOk("/api/meetings");
-    
+
     const webSocket1 = server.ws(`/api/meetings/${meetingCode}`);
     const {memberId: memberId1} = await webSocket1.waitForMessage("initial");
+    webSocket1.send({type: "join", name: "Bob"});
     const webSocket2 = server.ws(`/api/meetings/${meetingCode}`);
     await webSocket2.waitForMessage("initial");
+    webSocket2.send({type: "join", name: "Alice"});
 
-    webSocket1.send({type: "setName", name: "Bob"});
+    webSocket1.send({type: "setName", name: "Robert"});
     const message1 = await webSocket1.waitForMessage("setName");
     const message2 = await webSocket2.waitForMessage("setName");
 
-    assert.deepStrictEqual(message1, {type: "setName", memberId: memberId1, name: "Bob"});
-    assert.deepStrictEqual(message2, {type: "setName", memberId: memberId1, name: "Bob"});
+    assert.deepStrictEqual(message1, {type: "setName", memberId: memberId1, name: "Robert"});
+    assert.deepStrictEqual(message2, {type: "setName", memberId: memberId1, name: "Robert"});
 });
 
 exports["joining client receives current state of meeting"] = withServer(async (server) => {
     const {data: {meetingCode}} = await server.postOk("/api/meetings");
-    
+
     const webSocket1 = server.ws(`/api/meetings/${meetingCode}`);
     const {memberId: memberId1} = await webSocket1.waitForMessage("initial");
+    webSocket1.send({type: "join", name: "Bob"});
+    await webSocket1.waitForMessage("join");
 
-    webSocket1.send({type: "setName", name: "Bob"});
-    
     const webSocket2 = server.ws(`/api/meetings/${meetingCode}`);
     const message2 = await webSocket2.waitForMessage("initial");
 
     assert.deepStrictEqual(
         message2.meeting.members,
         [
-            {memberId: memberId1, name: "Bob", handSignal: null},
+            [memberId1, {memberId: memberId1, name: "Bob", handSignal: null}],
         ],
     );
 });
 
 exports["when client sends invalid message then that client receives invalid message response"] = withServer(async (server) => {
     const {data: {meetingCode}} = await server.postOk("/api/meetings");
-    
+
     const webSocket1 = server.ws(`/api/meetings/${meetingCode}`);
     await webSocket1.waitForMessage("initial");
-    webSocket1.send({type: "setName", bob: "Bob"});
+    webSocket1.send({type: "join", bob: "Bob"});
     const message1 = await webSocket1.waitForMessage("invalid");
 
-    assert.deepStrictEqual(message1, {type: "invalid", message: {type: "setName", bob: "Bob"}});
+    assert.deepStrictEqual(message1, {type: "invalid", message: {type: "join", bob: "Bob"}});
 });
 
 exports["when message has extra properties then update strips extra properties"] = withServer(async (server) => {
     // TODO: should be erroring in this case?
     // See: https://github.com/gcanti/io-ts/issues/322
     const {data: {meetingCode}} = await server.postOk("/api/meetings");
-    
+
     const webSocket1 = server.ws(`/api/meetings/${meetingCode}`);
     const {memberId: memberId1} = await webSocket1.waitForMessage("initial");
-    webSocket1.send({type: "setName", name: "Bob", x: 1});
-    const message1 = await webSocket1.waitForMessage("setName");
+    webSocket1.send({type: "join", name: "Bob", x: 1});
+    const message1 = await webSocket1.waitForMessage("join");
 
-    assert.deepStrictEqual(message1, {type: "setName", memberId: memberId1, name: "Bob"});
+    assert.deepStrictEqual(message1, {type: "join", memberId: memberId1, name: "Bob"});
 });
 
 async function postOk(url) {
@@ -139,14 +143,13 @@ function wrapWebSocket(ws) {
             return wait(event => event.name === "message" && event.value.type === type);
         },
     };
-            
 }
 
 function withServer(func) {
     return async () => {
         const server = createServer({port: TEST_PORT});
         const webSockets = [];
-        
+
         try {
             await func({
                 async postOk(url) {
