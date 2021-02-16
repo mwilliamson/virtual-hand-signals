@@ -109,4 +109,5 @@ export function createServer({port}: {port: number}) {
 if (require.main === module) {
     const port = parseInt(process.env.PORT || "8000", 10);
     createServer({port: port});
+    console.log(`server started on port ${port}`);
 }
