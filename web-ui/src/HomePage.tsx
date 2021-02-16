@@ -61,7 +61,6 @@ export default function HomePage() {
 }
 
 function JoinMeetingForm() {
-    // TODO: strip whitespace from meeting code
     const [meetingCode, setMeetingCode] = useState("");
     const [name, setName] = useState("");
 
@@ -70,7 +69,7 @@ function JoinMeetingForm() {
     const handleSubmit = (event: React.SyntheticEvent) => {
         event.preventDefault();
         // TODO: check meeting exists
-        navigation.joinMeeting(meetingCode, {name: name});
+        navigation.joinMeeting(meetingCode.trim(), {name: name});
     };
 
     return (
