@@ -25,6 +25,7 @@ import { useLocation, useParams } from "react-router-dom";
 
 import { applyUpdate, ClientMessage, ClientMessages, handSignals, Meeting, Member } from "server/lib/meetings";
 import * as api from "./api";
+import * as localStorage from "./localStorage";
 import { JoinMeetingHistoryState, useNavigation } from "./navigation";
 import PageContentContainer from "./PageContentContainer";
 
@@ -111,7 +112,6 @@ interface MeetingPageJoiningProps {
 }
 
 function MeetingPageJoining(props: MeetingPageJoiningProps) {
-    // TODO: store previously used name
     const {meeting, send} = props;
 
     const handleJoin = (name: string) => {
@@ -159,6 +159,11 @@ function MeetingPageJoined(props: MeetingPageJoinedProps) {
         // We do this now rather than as soon as we send the message to join
         // to avoid briefly rendering the form to enter a name.
         window.history.replaceState(null, "");
+
+        try {
+            localStorage.setName(member.name);
+        } catch {
+        }
     }, []);
 
     function handleChangeName(newName: string) {
@@ -276,12 +281,12 @@ function JoinForm(props: JoinFormProps) {
     const {onJoin} = props;
 
     return (
-        <NameForm initialValue="" onSubmit={name => onJoin(name)} submitText="Join" />
+        <NameForm onSubmit={name => onJoin(name)} submitText="Join" />
     );
 }
 
 interface NameFormProps {
-    initialValue: string;
+    initialValue?: string;
     onSubmit: (name: string) => void;
     submitText: string;
 }
@@ -289,7 +294,13 @@ interface NameFormProps {
 function NameForm(props: NameFormProps) {
     const {initialValue, onSubmit, submitText} = props;
 
-    const [name, setName] = useState(initialValue);
+    const [name, setName] = useState(() => {
+        if (initialValue !== undefined) {
+            return initialValue;
+        } else {
+            return localStorage.getName() ?? "";
+        }
+    });
 
     const handleJoin = (event: React.SyntheticEvent) => {
         event.preventDefault();

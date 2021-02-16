@@ -11,6 +11,7 @@ import { useState } from "react";
 import { Meeting } from "../../server/lib/meetings";
 import * as api from "./api";
 import { useErrorReporter } from "./errors";
+import * as localStorage from "./localStorage";
 import { useNavigation } from "./navigation";
 import PageContentContainer from "./PageContentContainer";
 
@@ -57,7 +58,7 @@ export default function HomePage() {
 
 function JoinMeetingForm() {
     const [meetingCode, setMeetingCode] = useState("");
-    const [name, setName] = useState("");
+    const [name, setName] = useState(localStorage.getName() ?? "");
 
     const navigation = useNavigation();
 
