@@ -52,7 +52,13 @@ export default function MeetingPage() {
                 errorReporter.unexpectedError({error: error});
             },
             onInit: ({meeting, memberId}) => {
-                setState({type: "connected", meeting: meeting, memberId: memberId, send: connection.send});
+                const send = (message: ClientMessage) => {
+                    connection.send(message);
+                    if (message.type === "join" || message.type === "setName") {
+                        localStorage.setName(message.name);
+                    }
+                };
+                setState({type: "connected", meeting: meeting, memberId: memberId, send: send});
             },
             onUpdate: update => {
                 setState(state => {
@@ -176,11 +182,6 @@ function MeetingPageJoined(props: MeetingPageJoinedProps) {
         // We do this now rather than as soon as we send the message to join
         // to avoid briefly rendering the form to enter a name.
         window.history.replaceState(null, "");
-
-        try {
-            localStorage.setName(member.name);
-        } catch {
-        }
     }, []);
 
     function handleChangeName(newName: string) {
