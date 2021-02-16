@@ -84,7 +84,7 @@ function JoinMeetingForm() {
                     value={meetingCode}
                 />
             </FormControl>
-            <FormControl>
+            <FormControl mt={2}>
                 <FormLabel>Name</FormLabel>
                 <Input
                     type="text"
