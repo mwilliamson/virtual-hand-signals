@@ -69,12 +69,24 @@ function JoinMeetingForm() {
     const toast = useToast();
 
     const handleSubmit = async (event: React.SyntheticEvent) => {
-        // TODO: handle errors
         event.preventDefault();
 
         const trimmedMeetingCode = meetingCode.trim();
 
-        const meeting = await api.fetchMeetingByMeetingCode(trimmedMeetingCode);
+        let meeting: Meeting | null;
+        try {
+            meeting = await api.fetchMeetingByMeetingCode(trimmedMeetingCode);
+        } catch (error) {
+            toast({
+                title: "Something's gone wrong",
+                description: "An unexpected error has been encountered",
+                status: "error",
+                isClosable: true,
+                duration: null,
+            });
+            return;
+        }
+
         if (meeting === null) {
             toast({
                 title: "Could not find meeting",
