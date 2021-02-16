@@ -27,7 +27,6 @@ import { applyUpdate, ClientMessage, ClientMessages, handSignals, Meeting, Membe
 import * as api from "./api";
 import { JoinMeetingHistoryState } from "./navigation";
 import PageContentContainer from "./PageContentContainer";
-import useOnFirstRender from "./useOnFirstRender";
 
 type State =
     | {type: "connecting"}
