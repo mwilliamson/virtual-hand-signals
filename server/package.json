@@ -4,7 +4,8 @@
   "main": "index.js",
   "scripts": {
     "watch": "tsc --watch",
-    "test": "mocha test.js --ui exports"
+    "test": "mocha test.js --ui exports",
+    "start": "node lib/server.js"
   },
   "author": "",
   "license": "BSD-2-Clause",
