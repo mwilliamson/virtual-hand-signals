@@ -12,6 +12,7 @@ import { useState } from "react";
 
 import { Meeting } from "../../server/lib/meetings";
 import * as api from "./api";
+import PageContentContainer from "./PageContentContainer";
 
 export default function HomePage() {
     const navigation = useNavigation();
@@ -51,14 +52,15 @@ export default function HomePage() {
                     <Button onClick={handleJoinMeetingClick}>Join meeting</Button>
                 </ButtonGroup>
             ) : (
-                <JoinMeetingForm />
+                <PageContentContainer>
+                    <JoinMeetingForm />
+                </PageContentContainer>
             )}
         </Center>
     );
 }
 
 function JoinMeetingForm() {
-    // TODO: consistent width with meeting page
     // TODO: set name here as well
     const [meetingCode, setMeetingCode] = useState("");
 
