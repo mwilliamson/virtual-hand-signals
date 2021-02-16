@@ -1,6 +1,6 @@
 import { useHistory } from "react-router-dom";
 
-export type JoinMeetingHistoryState = {name: string} | undefined;
+export type JoinMeetingHistoryState = {name: string} | null | undefined;
 
 export function useNavigation() {
     const history = useHistory();

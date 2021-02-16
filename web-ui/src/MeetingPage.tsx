@@ -123,25 +123,23 @@ function MeetingPageJoining(props: MeetingPageJoiningProps) {
     const state = location.state as JoinMeetingHistoryState;
 
     useEffect(() => {
-        if (state !== undefined) {
+        if (state != null) {
             handleJoin(state.name);
         }
     }, [state]);
 
-    if (state !== undefined) {
-        return null;
-    } else {
-        return (
-            <>
-                <Box position="sticky" top={0}>
-                    <AppBar meetingCode={meeting.meetingCode} />
-                </Box>
+    return (
+        <>
+            <Box position="sticky" top={0}>
+                <AppBar meetingCode={meeting.meetingCode} />
+            </Box>
+            {state == null && (
                 <PageContentContainer>
                     <JoinForm onJoin={handleJoin} />
                 </PageContentContainer>
-            </>
-        );
-    }
+            )}
+        </>
+    );
 }
 
 interface MeetingPageJoinedProps {
