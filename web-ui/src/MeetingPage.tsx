@@ -153,6 +153,10 @@ function MeetingPageJoined(props: MeetingPageJoinedProps) {
 
     const [changeName, setChangeName] = useState(false);
 
+    useEffect(() => {
+        window.history.replaceState(null, "");
+    }, []);
+
     function handleChangeName(newName: string) {
         send(ClientMessages.setName(newName));
         setChangeName(false);
