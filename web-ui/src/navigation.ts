@@ -6,6 +6,10 @@ export function useNavigation() {
     const history = useHistory();
 
     return {
+        goToHomePage() {
+            history.push("/");
+        },
+
         joinMeeting(meetingCode: string, state?: JoinMeetingHistoryState) {
             history.push(`/meetings/${meetingCode}`, state);
         },

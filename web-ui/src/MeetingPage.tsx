@@ -21,11 +21,11 @@ import {
 import MoreVertIcon from "@material-ui/icons/MoreVert";
 import PersonIcon from "@material-ui/icons/Person";
 import { useEffect, useState } from "react";
-import { useHistory, useLocation, useParams } from "react-router-dom";
+import { useLocation, useParams } from "react-router-dom";
 
 import { applyUpdate, ClientMessage, ClientMessages, handSignals, Meeting, Member } from "server/lib/meetings";
 import * as api from "./api";
-import { JoinMeetingHistoryState } from "./navigation";
+import { JoinMeetingHistoryState, useNavigation } from "./navigation";
 import PageContentContainer from "./PageContentContainer";
 
 type State =
@@ -234,10 +234,10 @@ interface SettingsMenuButtonProps {
 function SettingsMenuButton(props: SettingsMenuButtonProps) {
     const {onChangeName} = props;
 
-    const history = useHistory();
+    const navigation = useNavigation();
 
     function handleLeave() {
-        history.push("/");
+        navigation.goToHomePage();
     }
 
     return (
