@@ -154,6 +154,10 @@ function MeetingPageJoined(props: MeetingPageJoinedProps) {
     const [changeName, setChangeName] = useState(false);
 
     useEffect(() => {
+        // Once we've joined the meeting, replace the history state so that
+        // reloading the page doesn't automatically fill in the name.
+        // We do this now rather than as soon as we send the message to join
+        // to avoid briefly rendering the form to enter a name.
         window.history.replaceState(null, "");
     }, []);
 
