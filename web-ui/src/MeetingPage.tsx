@@ -67,7 +67,7 @@ export default function MeetingPage() {
             connection.close();
         };
     }, []);
-    
+
     return (
         <>
             {state.type === "connected" ? (
@@ -98,7 +98,7 @@ function ConnectedMeeting(props: ConnectedMeetingProps) {
         const handleJoin = (name: string) => {
             send(ClientMessages.join(name));
         };
-    
+
         return (
             <>
                 <Box position="sticky" top={0}>
@@ -219,7 +219,7 @@ function SettingsMenuButton(props: SettingsMenuButtonProps) {
                     </ModalBody>
                 </ModalContent>
             </Modal>
-            <Menu>
+            <Menu placement="bottom-end">
                 <MenuButton
                     display="block"
                     as={IconButton}
@@ -244,7 +244,7 @@ interface JoinFormProps {
 
 function JoinForm(props: JoinFormProps) {
     const {onJoin} = props;
-    
+
     return (
         <NameForm initialValue="" onSubmit={name => onJoin(name)} submitText="Join" />
     );
@@ -265,7 +265,7 @@ function NameForm(props: NameFormProps) {
         event.preventDefault();
         onSubmit(name);
     };
-    
+
     return (
         <form onSubmit={handleJoin}>
             <NameControl onChange={name => setName(name)} value={name} />
@@ -312,7 +312,7 @@ function HandSignalControl(props: HandSignalControlProps) {
     const handleLowerHandClick = () => {
         onChange(null);
     };
-    
+
     const button = value === null ? (
         <Button my={4} onClick={handleRaiseHandClick}>Raise hand</Button>
     ) : (
