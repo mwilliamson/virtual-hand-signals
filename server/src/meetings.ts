@@ -21,11 +21,13 @@ const Member = t.strict({
 export interface Meeting {
     meetingCode: string;
     members: OrderedMap<string, Member>;
+    hasQueue: boolean;
 }
 
 export const Meeting = t.strict({
     meetingCode: t.string,
     members: immutableT.orderedMap(t.string, Member),
+    hasQueue: t.boolean,
 });
 
 const Meetings = {

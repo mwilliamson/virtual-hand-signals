@@ -6,11 +6,15 @@ import { Meeting } from "./meetings";
 export function createMeetingRepository() {
     const meetings = new Map<string, Meeting>();
 
-    function createMeeting(): Meeting {
+    function createMeeting({hasQueue}: {hasQueue: boolean}): Meeting {
         while (true) {
             const meetingCode = generateMeetingCode();
             if (!meetings.has(meetingCode)) {
-                return {meetingCode: meetingCode, members: OrderedMap()};
+                return {
+                    meetingCode: meetingCode,
+                    members: OrderedMap(),
+                    hasQueue: hasQueue,
+                };
             }
         }
     }

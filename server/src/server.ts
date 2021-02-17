@@ -27,7 +27,7 @@ export function createServer({port}: {port: number}) {
     app.use(cors());
 
     app.post("/api/meetings", (request, response) => {
-        const meeting = meetings.createMeeting();
+        const meeting = meetings.createMeeting({hasQueue: false});
         saveMeeting(meeting);
         response.send(Meeting.encode(meeting));
     });
