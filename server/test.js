@@ -124,9 +124,11 @@ function wrapWebSocket(ws) {
         }
     }
 
-    function wait(predicate) {
+    function wait(description, predicate) {
         return new Promise((resolve, reject) => {
             handleWait(predicate, resolve, reject);
+
+            setTimeout(() => reject(new Error(`timed out waiting for ${description}`)), 500);
         });
     }
 
@@ -152,11 +154,14 @@ function wrapWebSocket(ws) {
         },
 
         waitForError() {
-            return wait(event => event.name === "error");
+            return wait("error", event => event.name === "error");
         },
 
         waitForMessage(type) {
-            return wait(event => event.name === "message" && event.value.type === type);
+            return wait(
+                `message of type ${type}`,
+                 event => event.name === "message" && event.value.type === type,
+            );
         },
     };
 }
