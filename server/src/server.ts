@@ -3,6 +3,8 @@ import * as url from "url";
 
 import cors from "cors";
 import express from "express";
+import { isLeft } from "fp-ts/Either";
+import * as t from "io-ts";
 import * as uuid from "uuid";
 import WebSocket from "ws";
 
@@ -23,13 +25,26 @@ export function createServer({port}: {port: number}) {
     const saveMeeting = (meeting: Meeting) => meetings.set(meeting.meetingCode, meeting);
 
     const app = express();
-
+    app.use(express.json());
     app.use(cors());
 
+    const CreateMeetingRequestBody = t.union([
+        t.undefined,
+        t.partial({
+            hasQueue: t.boolean,
+        }),
+    ]);
+
     app.post("/api/meetings", (request, response) => {
-        const meeting = meetings.createMeeting({hasQueue: false});
-        saveMeeting(meeting);
-        response.send(Meeting.encode(meeting));
+        const bodyResult = CreateMeetingRequestBody.decode(request.body.data);
+        if (isLeft(bodyResult)) {
+            response.status(400).send();
+        } else {
+            const {hasQueue = false} = bodyResult.right ?? {};
+            const meeting = meetings.createMeeting({hasQueue: hasQueue});
+            saveMeeting(meeting);
+            response.send(Meeting.encode(meeting));
+        }
     });
 
     app.get("/api/meetings/:meetingCode", (request, response) => {

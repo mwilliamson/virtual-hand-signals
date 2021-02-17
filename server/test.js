@@ -33,6 +33,34 @@ exports["POSTing to /api/meetings creates meeting that can be GETed"] = withServ
    assert.deepStrictEqual(response.data.members, []);
 });
 
+exports["meeting has no queue by default"] = withServer(async (server) => {
+    const {data: {meetingCode}} = await server.postOk("/api/meetings");
+
+   const response = await server.get(`/api/meetings/${meetingCode}`);
+
+   assert.strictEqual(response.status, 200);
+   assert.strictEqual(response.data.hasQueue, false);
+});
+
+exports["meeting can be created with queue"] = withServer(async (server) => {
+    const {data: {meetingCode}} = await server.postOk("/api/meetings", {hasQueue: true});
+
+   const response = await server.get(`/api/meetings/${meetingCode}`);
+
+   assert.strictEqual(response.status, 200);
+   assert.strictEqual(response.data.hasQueue, true);
+});
+
+exports["POSTing to /api/meetings creates meeting that can be GETed"] = withServer(async (server) => {
+    const {data: {meetingCode}} = await server.postOk("/api/meetings");
+
+   const response = await server.get(`/api/meetings/${meetingCode}`);
+
+   assert.strictEqual(response.status, 200);
+   assert.deepStrictEqual(response.data.meetingCode, meetingCode);
+   assert.deepStrictEqual(response.data.members, []);
+});
+
 exports["POSTing to /api/meetings creates meeting that can be joined"] = withServer(async (server) => {
     const {data: {meetingCode}} = await server.postOk("/api/meetings");
     const webSocket = server.ws(`/api/meetings/${meetingCode}`);
@@ -106,8 +134,8 @@ exports["when message has extra properties then update strips extra properties"]
     assert.deepStrictEqual(message1, {type: "join", memberId: memberId1, name: "Bob"});
 });
 
-async function postOk(url) {
-    const response = await axios.post(url);
+async function postOk(url, data) {
+    const response = await axios.post(url, {data: data});
     assert.strictEqual(200, response.status);
     return response;
 }
@@ -184,8 +212,8 @@ function withServer(func) {
                     return axios.get(`http://localhost:${TEST_PORT}${url}`, {validateStatus: null});
                 },
 
-                async postOk(url) {
-                    return postOk(`http://localhost:${TEST_PORT}${url}`);
+                async postOk(url, data) {
+                    return postOk(`http://localhost:${TEST_PORT}${url}`, data);
                 },
 
                 ws(url) {
