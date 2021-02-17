@@ -1,4 +1,3 @@
-import { pipe } from "fp-ts/function";
 import { fold, isLeft, Left } from "fp-ts/Either";
 import * as t from "io-ts";
 import { PathReporter } from "io-ts/PathReporter";
