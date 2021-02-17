@@ -17,5 +17,9 @@ export function useNavigation() {
         joiningMeeting() {
             history.push("/join");
         },
+
+        startingMeeting() {
+            history.push("/start");
+        },
     };
 }

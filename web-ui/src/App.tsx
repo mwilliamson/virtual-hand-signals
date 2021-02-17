@@ -5,6 +5,7 @@ import { BrowserRouter as Router, Route } from "react-router-dom";
 import JoinMeetingPage from "./JoinMeetingPage";
 import HomePage from "./HomePage";
 import MeetingPage from "./MeetingPage";
+import StartMeetingPage from "./StartMeetingPage";
 
 function App() {
     return (
@@ -18,6 +19,9 @@ function App() {
                 </Route>
                 <Route path="/meetings/:meetingCode" exact>
                     <MeetingPage />
+                </Route>
+                <Route path="/start" exact>
+                    <StartMeetingPage />
                 </Route>
             </Router>
         </ChakraProvider>
