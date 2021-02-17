@@ -10,6 +10,7 @@ import { useState } from "react";
 
 import { Meeting } from "../../server/lib/meetings";
 import * as api from "./api";
+import { AppBar } from "./AppBar";
 import { meetingNotFoundTitle, meetingNotFoundDescription, useErrorReporter } from "./errors";
 import * as localStorage from "./localStorage";
 import { useNavigation } from "./navigation";
@@ -40,20 +41,28 @@ export default function HomePage() {
         setJoiningMeeting(true);
     }
 
-    return (
-        <Center width="100vw" height="100vh">
-            {!joiningMeeting ? (
-                <ButtonGroup>
-                    <Button onClick={handleStartMeeting}>Start meeting</Button>
-                    <Button onClick={handleJoinMeetingClick}>Join meeting</Button>
-                </ButtonGroup>
-            ) : (
+    if (!joiningMeeting) {
+        return (
+            <>
+                <AppBar>&nbsp;</AppBar>
+                <PageContentContainer>
+                    <ButtonGroup>
+                        <Button onClick={handleStartMeeting}>Start meeting</Button>
+                        <Button onClick={handleJoinMeetingClick}>Join meeting</Button>
+                    </ButtonGroup>
+                </PageContentContainer>
+            </>
+        );
+    } else {
+        return (
+            <>
+                <AppBar>Join meeting</AppBar>
                 <PageContentContainer>
                     <JoinMeetingForm />
                 </PageContentContainer>
-            )}
-        </Center>
-    );
+            </>
+        );
+    }
 }
 
 function JoinMeetingForm() {
