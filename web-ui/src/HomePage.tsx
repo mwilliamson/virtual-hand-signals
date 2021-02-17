@@ -1,6 +1,7 @@
 import {
     Button,
     ButtonGroup,
+    Center,
  } from "@chakra-ui/react";
 
 import { AppBar } from "./AppBar";
@@ -22,10 +23,12 @@ export default function HomePage() {
         <>
             <AppBar>&nbsp;</AppBar>
             <PageContentContainer>
-                <ButtonGroup>
-                    <Button onClick={handleStartMeetingClick}>Start meeting</Button>
-                    <Button onClick={handleJoinMeetingClick}>Join meeting</Button>
-                </ButtonGroup>
+                <Center>
+                    <ButtonGroup>
+                        <Button onClick={handleStartMeetingClick}>Start meeting</Button>
+                        <Button onClick={handleJoinMeetingClick}>Join meeting</Button>
+                    </ButtonGroup>
+                </Center>
             </PageContentContainer>
         </>
     );
