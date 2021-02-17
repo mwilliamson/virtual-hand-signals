@@ -13,5 +13,9 @@ export function useNavigation() {
         joinMeeting(meetingCode: string, state?: JoinMeetingHistoryState) {
             history.push(`/meetings/${meetingCode}`, state);
         },
+
+        joiningMeeting() {
+            history.push("/join");
+        },
     };
 }
