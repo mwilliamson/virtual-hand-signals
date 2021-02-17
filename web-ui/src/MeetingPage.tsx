@@ -2,7 +2,6 @@ import {
     Box,
     Button,
     Center,
-    Container,
     Drawer,
     DrawerBody,
     DrawerContent,
@@ -138,10 +137,6 @@ function MeetingPageConnected(props: MeetingPageConnectedProps) {
     const member = meeting.members.get(memberId);
 
     if (member === undefined) {
-        const handleJoin = (name: string) => {
-            send(ClientMessages.join(name));
-        };
-
         return (
             <MeetingPageJoining meeting={meeting} send={send} />
         );
