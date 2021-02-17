@@ -350,7 +350,7 @@ function NameControl(props: NameControlProps) {
 
     return (
         <FormControl>
-            <FormLabel>Name</FormLabel>
+            <FormLabel>Your name</FormLabel>
             <Input autoFocus type="text" onChange={event => onChange(event.target.value)} value={value} />
         </FormControl>
     );

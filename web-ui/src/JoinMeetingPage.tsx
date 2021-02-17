@@ -71,7 +71,7 @@ function JoinMeetingForm() {
                 />
             </FormControl>
             <FormControl mt={2}>
-                <FormLabel>Name</FormLabel>
+                <FormLabel>Your name</FormLabel>
                 <Input
                     type="text"
                     onChange={event => setName(event.target.value)}

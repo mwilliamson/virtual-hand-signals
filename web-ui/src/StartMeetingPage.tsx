@@ -53,7 +53,7 @@ function StartMeetingForm() {
     return (
         <form onSubmit={handleSubmit}>
             <FormControl>
-                <FormLabel>Name</FormLabel>
+                <FormLabel>Your name</FormLabel>
                 <Input
                     type="text"
                     onChange={event => setName(event.target.value)}
