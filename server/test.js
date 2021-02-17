@@ -135,7 +135,7 @@ exports["when message has extra properties then update strips extra properties"]
 });
 
 async function postOk(url, data) {
-    const response = await axios.post(url, {data: data});
+    const response = await axios.post(url, data);
     assert.strictEqual(200, response.status);
     return response;
 }

@@ -36,7 +36,7 @@ export function createServer({port}: {port: number}) {
     ]);
 
     app.post("/api/meetings", (request, response) => {
-        const bodyResult = CreateMeetingRequestBody.decode(request.body.data);
+        const bodyResult = CreateMeetingRequestBody.decode(request.body);
         if (isLeft(bodyResult)) {
             response.status(400).send();
         } else {
