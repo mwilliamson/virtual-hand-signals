@@ -24,18 +24,18 @@ import { useLocation, useParams } from "react-router-dom";
 
 import { applyUpdate, ClientMessage, ClientMessages, handSignals, Meeting, Member } from "server/lib/meetings";
 import { assertUnreachable } from "server/lib/types";
-import { AppBar as AppBarContainer } from "./AppBar";
-import * as api from "./api";
+import { AppBar as AppBarContainer } from "../AppBar";
+import * as api from "../api";
 import {
     ErrorAlert,
     meetingNotFoundTitle,
     meetingNotFoundDescription,
     UnexpectedErrorAlert,
     useErrorReporter,
- } from "./errors";
-import * as localStorage from "./localStorage";
-import { JoinMeetingHistoryState, useNavigation } from "./navigation";
-import PageContentContainer from "./PageContentContainer";
+ } from "../errors";
+import * as localStorage from "../localStorage";
+import { JoinMeetingHistoryState, useNavigation } from "../navigation";
+import PageContentContainer from "../PageContentContainer";
 
 type State =
     | {type: "connecting"}
