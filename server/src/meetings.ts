@@ -1,4 +1,3 @@
-import cryptoRandomString from "crypto-random-string";
 import { pipe } from "fp-ts/function";
 import { fold } from "fp-ts/Either";
 import { OrderedMap, updateIn } from "immutable";
@@ -48,17 +47,6 @@ export const handSignals = [
     "clarification",
     "point of order",
 ];
-
-export function createMeeting(): Meeting {
-    const meetingCode = generateMeetingCode();
-    return {meetingCode: meetingCode, members: OrderedMap()};
-}
-
-function generateMeetingCode() {
-    const part = () => cryptoRandomString({length: 3, characters: "abcdefghijklmopqrstuvwxyz"});
-
-    return `${part()}-${part()}-${part()}`;
-}
 
 export type Update =
     | {type: "join", memberId: string, name: string}

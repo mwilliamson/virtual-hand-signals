@@ -10,15 +10,15 @@ import {
     applyUpdate,
     ClientMessage,
     clientMessageToUpdate,
-    createMeeting,
     Meeting,
     ServerMessage,
     ServerMessages,
     Update,
 } from "./meetings";
+import { createMeetingRepository } from "./meetingRepositories";
 
 export function createServer({port}: {port: number}) {
-    const meetings = new Map<string, Meeting>();
+    const meetings = createMeetingRepository();
 
     const saveMeeting = (meeting: Meeting) => meetings.set(meeting.meetingCode, meeting);
 
@@ -27,7 +27,7 @@ export function createServer({port}: {port: number}) {
     app.use(cors());
 
     app.post("/api/meetings", (request, response) => {
-        const meeting = createMeeting();
+        const meeting = meetings.createMeeting();
         saveMeeting(meeting);
         response.send(Meeting.encode(meeting));
     });
