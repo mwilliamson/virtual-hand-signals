@@ -82,8 +82,8 @@ export function joinMeeting({meetingCode, onFatal, onError, onNotFound, onInit, 
     };
 }
 
-export async function startMeeting(): Promise<Meeting> {
-    const json = await postJson<Meeting>("/api/meetings");
+export async function startMeeting({hasQueue}: {hasQueue: boolean}): Promise<Meeting> {
+    const json = await postJson<Meeting>("/api/meetings", {hasQueue: hasQueue});
     return decodeMeetingJson(json);
 }
 
@@ -100,10 +100,14 @@ function decodeResultToError(result: Left<t.Errors>): Error {
     return new Error(PathReporter.report(result).join("\n"));
 }
 
-async function postJson<T>(path: string): Promise<T> {
+async function postJson<T>(path: string, data: unknown): Promise<T> {
     const url = buildHttpUrl(path);
     const response = await fetch(url, {
         method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
     });
     if (response.status === 200) {
         return response.json();

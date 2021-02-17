@@ -1,5 +1,6 @@
 import {
     Button,
+    Checkbox,
     FormControl,
     FormLabel,
     Input,
@@ -27,6 +28,7 @@ export default function StartMeetingPage() {
 
 function StartMeetingForm() {
     const [name, setName] = useState(localStorage.getName() ?? "");
+    const [hasQueue, setHasQueue] = useState(false);
 
     const navigation = useNavigation();
 
@@ -37,7 +39,7 @@ function StartMeetingForm() {
 
         let meeting: Meeting;
         try {
-            meeting = await api.startMeeting();
+            meeting = await api.startMeeting({hasQueue: hasQueue});
         } catch (error) {
             errorReporter.unexpectedError({
                 title: "Could not start meeting",
@@ -50,13 +52,21 @@ function StartMeetingForm() {
 
     return (
         <form onSubmit={handleSubmit}>
-            <FormControl mt={2}>
+            <FormControl>
                 <FormLabel>Name</FormLabel>
                 <Input
                     type="text"
                     onChange={event => setName(event.target.value)}
                     value={name}
                 />
+            </FormControl>
+            <FormControl mt={2}>
+                <Checkbox
+                    checked={hasQueue}
+                    onChange={event => setHasQueue(event.target.checked)}
+                >
+                    Use queue
+                </Checkbox>
             </FormControl>
             <Button disabled={name === ""} mt={4} type="submit">Start meeting</Button>
         </form>
