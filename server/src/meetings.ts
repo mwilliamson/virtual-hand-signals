@@ -1,6 +1,6 @@
 import { pipe } from "fp-ts/function";
 import { fold } from "fp-ts/Either";
-import { OrderedMap, updateIn } from "immutable";
+import { List, OrderedMap, updateIn } from "immutable";
 import * as t from "io-ts";
 
 import * as immutableT from "./immutable-io-ts";
@@ -21,13 +21,16 @@ const Member = t.strict({
 export interface Meeting {
     meetingCode: string;
     members: OrderedMap<string, Member>;
-    hasQueue: boolean;
+    queue: null | List<string>;
 }
 
 export const Meeting = t.strict({
     meetingCode: t.string,
     members: immutableT.orderedMap(t.string, Member),
-    hasQueue: t.boolean,
+    queue: t.union([
+        t.null,
+        immutableT.list(t.string),
+    ]),
 });
 
 const Meetings = {
@@ -149,10 +152,26 @@ export function applyUpdate(meeting: Meeting, update: Update): Meeting {
             name: update.name,
         }));
     } else if (update.type === "setHandSignal") {
-        return Meetings.updateMemberByMemberId(meeting, update.memberId, member => ({
+        const meeting2 = Meetings.updateMemberByMemberId(meeting, update.memberId, member => ({
             ...member,
             handSignal: update.handSignal,
         }));
+
+        if (meeting2.queue === null) {
+            return meeting;
+        } else if (update.handSignal === null) {
+            return {
+                ...meeting2,
+                queue: meeting2.queue.filter(memberId => update.memberId !== memberId),
+            };
+        } else if (!meeting2.queue.includes(update.memberId))  {
+            return {
+                ...meeting2,
+                queue: meeting2.queue.push(update.memberId),
+            };
+        } else {
+            return meeting;
+        }
     } else {
         return assertUnreachable(update, "unhandled update type: " + (update as Update).type);
     }

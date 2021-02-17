@@ -1,5 +1,5 @@
 import cryptoRandomString from "crypto-random-string";
-import { OrderedMap } from "immutable";
+import { List, OrderedMap } from "immutable";
 
 import { Meeting } from "./meetings";
 
@@ -13,7 +13,7 @@ export function createMeetingRepository() {
                 return {
                     meetingCode: meetingCode,
                     members: OrderedMap(),
-                    hasQueue: hasQueue,
+                    queue: hasQueue ? List() : null,
                 };
             }
         }
