@@ -167,7 +167,7 @@ function MeetingPageJoining(props: MeetingPageJoiningProps) {
             </Box>
             {state == null && (
                 <PageContentContainer>
-                    <JoinForm onJoin={handleJoin} />
+                    <NameForm onSubmit={handleJoin} submitText="Join" />
                 </PageContentContainer>
             )}
         </>
@@ -251,18 +251,6 @@ function AppBar(props: AppBarProps) {
                 )}
             </Flex>
         </AppBarContainer>
-    );
-}
-
-interface JoinFormProps {
-    onJoin: (name: string) => void;
-}
-
-function JoinForm(props: JoinFormProps) {
-    const {onJoin} = props;
-
-    return (
-        <NameForm onSubmit={name => onJoin(name)} submitText="Join" />
     );
 }
 
