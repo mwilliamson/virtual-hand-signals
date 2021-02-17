@@ -25,6 +25,7 @@ import { useLocation, useParams } from "react-router-dom";
 
 import { applyUpdate, ClientMessage, ClientMessages, handSignals, Meeting, Member } from "server/lib/meetings";
 import { assertUnreachable } from "server/lib/types";
+import { AppBar as AppBarContainer } from "./AppBar";
 import * as api from "./api";
 import {
     ErrorAlert,
@@ -254,27 +255,16 @@ function AppBar(props: AppBarProps) {
     const {meetingCode, right} = props;
 
     return (
-        <Box
-            color="white"
-            bg="blue.500"
-            py={2}
-            marginBottom={2}
-            fontWeight="bold"
-            position="sticky"
-            top={0}
-            zIndex={100}
-        >
-            <PageContentContainer>
-                <Flex>
-                    <Box flex="1 1 auto">
-                        Meeting code: {meetingCode}
-                    </Box>
-                    {right && (
-                        <Box>{right}</Box>
-                    )}
-                </Flex>
-            </PageContentContainer>
-        </Box>
+        <AppBarContainer>
+            <Flex>
+                <Box flex="1 1 auto">
+                    Meeting code: {meetingCode}
+                </Box>
+                {right && (
+                    <Box>{right}</Box>
+                )}
+            </Flex>
+        </AppBarContainer>
     );
 }
 
