@@ -2,27 +2,15 @@ import {
     Box,
     Button,
     Center,
-    Drawer,
-    DrawerBody,
-    DrawerContent,
-    DrawerOverlay,
     Flex,
     FormControl,
     FormLabel,
-    IconButton,
     Input,
-    Menu,
-    MenuButton,
-    MenuItem,
-    MenuList,
-    Stack,
- } from "@chakra-ui/react";
-import MoreVertIcon from "@material-ui/icons/MoreVert";
-import PersonIcon from "@material-ui/icons/Person";
+} from "@chakra-ui/react";
 import { useEffect, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
 
-import { applyUpdate, ClientMessage, ClientMessages, handSignals, Meeting, Member } from "server/lib/meetings";
+import { applyUpdate, ClientMessage, ClientMessages, Meeting, Member } from "server/lib/meetings";
 import { assertUnreachable } from "server/lib/types";
 import { AppBar as AppBarContainer } from "../AppBar";
 import * as api from "../api";
@@ -32,10 +20,13 @@ import {
     meetingNotFoundDescription,
     UnexpectedErrorAlert,
     useErrorReporter,
- } from "../errors";
+} from "../errors";
 import * as localStorage from "../localStorage";
-import { JoinMeetingHistoryState, useNavigation } from "../navigation";
+import { JoinMeetingHistoryState } from "../navigation";
 import PageContentContainer from "../PageContentContainer";
+import HandSignalControl from "./HandSignalControl";
+import MembersList from "./MembersList";
+import SettingsMenu from "./SettingsMenu";
 
 type State =
     | {type: "connecting"}
@@ -213,7 +204,7 @@ function MeetingPageJoined(props: MeetingPageJoinedProps) {
                 <AppBar
                     meetingCode={meeting.meetingCode}
                     right={
-                        <SettingsMenuButton onChangeName={() => setChangeName(true)} />
+                        <SettingsMenu onChangeName={() => setChangeName(true)} />
                     }
                 />
                 {!changeName && (
@@ -260,41 +251,6 @@ function AppBar(props: AppBarProps) {
                 )}
             </Flex>
         </AppBarContainer>
-    );
-}
-
-interface SettingsMenuButtonProps {
-    onChangeName: () => void;
-}
-
-function SettingsMenuButton(props: SettingsMenuButtonProps) {
-    const {onChangeName} = props;
-
-    const navigation = useNavigation();
-
-    function handleLeave() {
-        navigation.goToHomePage();
-    }
-
-    return (
-        <Menu placement="bottom-end">
-            <MenuButton
-                display="block"
-                as={IconButton}
-                icon={<MoreVertIcon />}
-                variant="unstyled"
-                size="xs"
-                aria-label="Settings"
-            />
-            <MenuList color="black">
-                <MenuItem onClick={() => onChangeName()}>
-                    Change name
-                </MenuItem>
-                <MenuItem onClick={handleLeave}>
-                    Leave meeting
-                </MenuItem>
-            </MenuList>
-        </Menu>
     );
 }
 
@@ -353,94 +309,5 @@ function NameControl(props: NameControlProps) {
             <FormLabel>Your name</FormLabel>
             <Input autoFocus type="text" onChange={event => onChange(event.target.value)} value={value} />
         </FormControl>
-    );
-}
-
-interface HandSignalControlProps {
-    onChange: (value: string | null) => void;
-    value: string | null;
-}
-
-function HandSignalControl(props: HandSignalControlProps) {
-    const {onChange, value} = props;
-
-    const [isDrawerVisible, setIsDrawerVisible] = useState(false);
-
-    const handleRaiseHandClick = () => {
-        setIsDrawerVisible(true);
-    };
-
-    const handleSelectHandSignal = (handSignal: string) => {
-        onChange(handSignal);
-        setIsDrawerVisible(false);
-    };
-
-    const handleLowerHandClick = () => {
-        onChange(null);
-    };
-
-    const button = value === null ? (
-        <Button my={4} onClick={handleRaiseHandClick}>Raise hand</Button>
-    ) : (
-        <Button my={4} onClick={handleLowerHandClick}>Lower hand</Button>
-    );
-
-    return (
-        <>
-            {button}
-            <Drawer placement="top" isOpen={isDrawerVisible} onClose={() => setIsDrawerVisible(false)}>
-                <DrawerOverlay>
-                    <DrawerContent>
-                        <DrawerBody>
-                            <PageContentContainer>
-                                <Stack spacing={2}>
-                                    {handSignals.map(handSignal => (
-                                        <Button
-                                            key={handSignal}
-                                            onClick={() => handleSelectHandSignal(handSignal)}
-                                        >
-                                            {handSignal}
-                                        </Button>
-                                    ))}
-                                </Stack>
-                            </PageContentContainer>
-                        </DrawerBody>
-                    </DrawerContent>
-                </DrawerOverlay>
-            </Drawer>
-        </>
-    );
-}
-
-interface MembersListProps {
-    meeting: Meeting;
-    memberId: string;
-}
-
-function MembersList(props: MembersListProps) {
-    const {meeting, memberId} = props;
-
-    return (
-        <Stack spacing={2}>
-            {meeting.members.valueSeq().map(member => (
-                <Flex key={member.memberId}>
-                    <Box flex="1">
-                        <Box as="span" color="blue.300" mr={2}>
-                            <PersonIcon />
-                        </Box>
-
-                        {member.name}
-                        {member.memberId === memberId && " (you)"}
-                    </Box>
-                    <div>
-                        {member.handSignal !== null && (
-                            <Box as="span" bg="gray.100" borderRadius="lg" px={2} py={1} my={-1}>
-                                {member.handSignal}
-                            </Box>
-                        )}
-                    </div>
-                </Flex>
-            ))}
-        </Stack>
     );
 }
