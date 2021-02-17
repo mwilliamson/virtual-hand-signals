@@ -91,7 +91,8 @@ export const Update = t.union([
 export type ServerMessage =
     | Update
     | {type: "initial", memberId: string, meeting: Meeting}
-    | {type: "invalid", message: unknown};
+    | {type: "invalid", message: unknown}
+    | {type: "notFound"};
 
 export const ServerMessage = t.union([
     Update,
@@ -103,6 +104,9 @@ export const ServerMessage = t.union([
     t.strict({
         type: t.literal("invalid"),
         message: t.unknown,
+    }),
+    t.strict({
+        type: t.literal("notFound"),
     }),
 ]);
 
@@ -122,6 +126,8 @@ export const ServerMessages = {
     invalid(message: unknown): ServerMessage {
         return {type: "invalid", message: message};
     },
+
+    notFound: {type: "notFound" as "notFound"},
 
     join({memberId, name}: {memberId: string, name: string}): Update {
         return {type: "join", memberId: memberId, name: name}

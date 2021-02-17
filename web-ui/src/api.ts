@@ -17,18 +17,17 @@ export async function fetchMeetingByMeetingCode(meetingCode: string): Promise<Me
     }
 }
 
-export function joinMeeting({meetingCode, onFatal, onError, onInit, onUpdate}: {
+export function joinMeeting({meetingCode, onFatal, onError, onNotFound, onInit, onUpdate}: {
     meetingCode: string,
     onFatal: (error: Error) => void,
     onError: (error: Error) => void,
+    onNotFound: () => void,
     onInit: (x: {meeting: Meeting, memberId: string}) => void,
     onUpdate: (update: Update) => void,
 }) {
     const url = buildUrl(webSocketProtocol(), `/api/meetings/${meetingCode}`);
     const socket = new WebSocket(url);
     let open = false;
-
-    // TODO: handle meeting doesn't exist (change server to allow connection and send appropriate message?)
 
     socket.onmessage = event => {
         let messageJson: unknown;
@@ -48,6 +47,9 @@ export function joinMeeting({meetingCode, onFatal, onError, onInit, onUpdate}: {
                 onInit(message);
             } else if (message.type === "invalid") {
                 onError(new Error(`sent invalid message: ${JSON.stringify(message.message)}`));
+            } else if (message.type === "notFound") {
+                open = false;
+                onNotFound();
             } else {
                 onUpdate(message);
             }

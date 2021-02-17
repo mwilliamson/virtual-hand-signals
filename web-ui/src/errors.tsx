@@ -1,9 +1,19 @@
 import {
     Alert,
+    AlertDescription,
     AlertIcon,
+    AlertTitle,
+    Box,
     useToast,
 } from "@chakra-ui/react";
 import { useEffect } from "react";
+
+export const meetingNotFoundTitle = "Could not find meeting";
+export const meetingNotFoundDescription = (meetingCode: string) => (
+    <>
+        There doesn't seem to be a meeting with the code <strong>{meetingCode}</strong>.
+    </>
+);
 
 const unexpectedErrorTitle = "Something's gone wrong";
 const unexpectedErrorDescription = "An unexpected error has occurred.";
@@ -30,6 +40,25 @@ export function useErrorReporter() {
         error,
         unexpectedError,
     };
+}
+
+interface ErrorAlertProps {
+    title: string;
+    description: React.ReactNode;
+}
+
+export function ErrorAlert(props: ErrorAlertProps) {
+    const {title, description} = props;
+
+    return (
+        <Alert status="error">
+            <AlertIcon />
+            <Box>
+                <AlertTitle>{title}</AlertTitle>
+                <AlertDescription display="block">{description}</AlertDescription>
+            </Box>
+        </Alert>
+    );
 }
 
 interface UnexpectedErrorAlertProps {

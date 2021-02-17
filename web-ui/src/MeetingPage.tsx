@@ -26,7 +26,13 @@ import { useLocation, useParams } from "react-router-dom";
 import { applyUpdate, ClientMessage, ClientMessages, handSignals, Meeting, Member } from "server/lib/meetings";
 import { assertUnreachable } from "server/lib/types";
 import * as api from "./api";
-import { UnexpectedErrorAlert, useErrorReporter } from "./errors";
+import {
+    ErrorAlert,
+    meetingNotFoundTitle,
+    meetingNotFoundDescription,
+    UnexpectedErrorAlert,
+    useErrorReporter,
+ } from "./errors";
 import * as localStorage from "./localStorage";
 import { JoinMeetingHistoryState, useNavigation } from "./navigation";
 import PageContentContainer from "./PageContentContainer";
@@ -34,7 +40,8 @@ import PageContentContainer from "./PageContentContainer";
 type State =
     | {type: "connecting"}
     | {type: "connected", meeting: Meeting, memberId: string, send: (message: ClientMessage) => void}
-    | {type: "error", error: Error};
+    | {type: "error", error: Error}
+    | {type: "meetingNotFound"};
 
 export default function MeetingPage() {
     const {meetingCode} = useParams<{meetingCode: string}>();
@@ -50,6 +57,9 @@ export default function MeetingPage() {
             },
             onError: error => {
                 errorReporter.unexpectedError({error: error});
+            },
+            onNotFound: () => {
+                setState({type: "meetingNotFound"});
             },
             onInit: ({meeting, memberId}) => {
                 const send = (message: ClientMessage) => {
@@ -87,6 +97,18 @@ export default function MeetingPage() {
                 <AppBar meetingCode={meetingCode} />
                 <PageContentContainer>
                     <UnexpectedErrorAlert error={state.error} />
+                </PageContentContainer>
+            </>
+        );
+    } else if (state.type === "meetingNotFound") {
+        return (
+            <>
+                <AppBar meetingCode={meetingCode} />
+                <PageContentContainer>
+                    <ErrorAlert
+                        title={meetingNotFoundTitle}
+                        description={meetingNotFoundDescription(meetingCode)}
+                    />
                 </PageContentContainer>
             </>
         );

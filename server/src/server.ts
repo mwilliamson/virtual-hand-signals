@@ -46,7 +46,11 @@ export function createServer({port}: {port: number}) {
 
     const wss = new WebSocket.Server({noServer: true});
 
-    wss.on("connection", function connection(ws, request) {
+    function send(client: WebSocket, message: ServerMessage): void {
+        client.send(JSON.stringify(ServerMessages.toJson(message)));
+    }
+
+    const initConnection = (ws: WebSocket, initialMeeting: Meeting) => {
         let ponged = true;
         ws.on("pong", () => ponged = true);
 
@@ -61,13 +65,7 @@ export function createServer({port}: {port: number}) {
             }
         }, 1000);
 
-        const initialMeeting = (request as any).meeting as Meeting;
-
         send(ws, ServerMessages.initial({meeting: initialMeeting, memberId}));
-
-        function send(client: WebSocket, message: ServerMessage): void {
-            client.send(JSON.stringify(ServerMessages.toJson(message)));
-        }
 
         function processMessage(message: ClientMessage): void {
             const update = clientMessageToUpdate(memberId, message);
@@ -95,20 +93,28 @@ export function createServer({port}: {port: number}) {
             const message = JSON.parse(messageBuffer.toString());
             processMessage(message);
         });
+    }
+
+    wss.on("connection", function connection(ws, request) {
+        const initialMeeting = (request as any).meeting as Meeting | null;
+
+        if (initialMeeting === null) {
+            send(ws, ServerMessages.notFound);
+            ws.close();
+        } else {
+            initConnection(ws, initialMeeting);
+        }
     });
 
     server.on("upgrade", function upgrade(request, socket, head) {
         const requestPath = url.parse(request.url).pathname;
         const result = requestPath && /^\/api\/meetings\/([^\/]+)$/.exec(requestPath);
-        const meeting = result === null ? null : meetings.get(result[1]) ?? null;
-        if (meeting !== null) {
-            request.meeting = meeting;
-            wss.handleUpgrade(request, socket, head, function done(ws) {
-                wss.emit("connection", ws, request);
-            });
-        } else {
-            socket.destroy();
-        }
+        const meeting: Meeting | null = result === null ? null : meetings.get(result[1]) ?? null;
+
+        request.meeting = meeting;
+        wss.handleUpgrade(request, socket, head, function done(ws) {
+            wss.emit("connection", ws, request);
+        });
     });
 
     server.listen(port);

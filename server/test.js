@@ -14,11 +14,13 @@ exports["attempting to get non-existent meeting causes 404"] = withServer(async 
    assert.strictEqual(response.status, 404);
 });
 
-exports["attempting to connect non-existent meeting causes connection to be refused"] = withServer(async (server) => {
+exports["attempting to connect non-existent meeting causes connection to close with message"] = withServer(async (server) => {
     const webSocket = await server.ws("/api/meetings/abc-def-hij");
-    const error = await webSocket.waitForError();
 
-    assert.strictEqual("ECONNRESET", error.code);
+    const message = await webSocket.waitForMessage("notFound");
+    assert.deepStrictEqual(message, {type: "notFound"});
+
+    await webSocket.waitForClose();
 });
 
 exports["POSTing to /api/meetings creates meeting that can be GETed"] = withServer(async (server) => {
@@ -145,12 +147,17 @@ function wrapWebSocket(ws) {
         waiting = [predicate, resolve, reject];
     }
 
-    ws.on("message", data => storeEvent("message", JSON.parse(data)));
+    ws.on("close", () => storeEvent("close", null));
     ws.on("error", error => storeEvent("error", error));
+    ws.on("message", data => storeEvent("message", JSON.parse(data)));
 
     return {
         send(message) {
             ws.send(JSON.stringify(message));
+        },
+
+        waitForClose() {
+            return wait("close", event => event.name === "close");
         },
 
         waitForError() {

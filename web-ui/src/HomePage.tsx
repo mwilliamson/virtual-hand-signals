@@ -10,7 +10,7 @@ import { useState } from "react";
 
 import { Meeting } from "../../server/lib/meetings";
 import * as api from "./api";
-import { useErrorReporter } from "./errors";
+import { meetingNotFoundTitle, meetingNotFoundDescription, useErrorReporter } from "./errors";
 import * as localStorage from "./localStorage";
 import { useNavigation } from "./navigation";
 import PageContentContainer from "./PageContentContainer";
@@ -82,12 +82,8 @@ function JoinMeetingForm() {
 
         if (meeting === null) {
             errorReporter.error({
-                title: "Could not find meeting",
-                description: (
-                    <>
-                        There doesn't seem to be a meeting with the code <strong>{trimmedMeetingCode}</strong>.
-                    </>
-                ),
+                title: meetingNotFoundTitle,
+                description: meetingNotFoundDescription(trimmedMeetingCode),
             });
         } else {
             navigation.joinMeeting(trimmedMeetingCode, {name: name});
