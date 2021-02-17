@@ -7,8 +7,12 @@ export function createMeetingRepository() {
     const meetings = new Map<string, Meeting>();
 
     function createMeeting(): Meeting {
-        const meetingCode = generateMeetingCode();
-        return {meetingCode: meetingCode, members: OrderedMap()};
+        while (true) {
+            const meetingCode = generateMeetingCode();
+            if (!meetings.has(meetingCode)) {
+                return {meetingCode: meetingCode, members: OrderedMap()};
+            }
+        }
     }
 
     function get(meetingCode: string): Meeting | undefined {
