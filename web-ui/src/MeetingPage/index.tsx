@@ -25,7 +25,7 @@ import * as localStorage from "../localStorage";
 import { JoinMeetingHistoryState } from "../navigation";
 import PageContentContainer from "../PageContentContainer";
 import HandSignalControl from "./HandSignalControl";
-import MembersList from "./MembersList";
+import MeetingStatus from "./MeetingStatus";
 import SettingsMenu from "./SettingsMenu";
 
 type State =
@@ -225,7 +225,7 @@ function MeetingPageJoined(props: MeetingPageJoinedProps) {
                         submitText="Change name"
                     />
                 ) : (
-                    <MembersList meeting={meeting} memberId={member.memberId} />
+                    <MeetingStatus meeting={meeting} member={member} />
                 )}
             </PageContentContainer>
         </>
