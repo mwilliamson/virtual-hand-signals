@@ -28,7 +28,6 @@ export function createServer({port}: {port: number}) {
     const app = express();
     app.use(express.json());
     app.use(cors());
-    app.use(express.static(path.join(__dirname, "../../web-ui/build")))
 
     const CreateMeetingRequestBody = t.union([
         t.undefined,
@@ -57,6 +56,14 @@ export function createServer({port}: {port: number}) {
         } else {
             response.send(Meeting.encode(meeting));
         }
+    });
+
+
+    const staticPath = path.join(__dirname, "../../web-ui/build");
+    app.use(express.static(staticPath))
+
+    app.get("*", (request, response) => {
+        response.sendFile(path.resolve(staticPath, "index.html"));
     });
 
     const server = http.createServer(app);
