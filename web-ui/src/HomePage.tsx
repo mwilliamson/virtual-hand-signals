@@ -45,7 +45,7 @@ export default function HomePage() {
                 so could adding a little structure give more equal opportunity to speak?
             </Text>
 
-            <Text>
+            <Text my={4}>
                 This app takes inspiration from {" "}
                 <Link
                     color="blue.500"
@@ -60,7 +60,7 @@ export default function HomePage() {
                 or you might not be able to see all the participants, such as when someone is presenting slides.
             </Text>
 
-            <Text>
+            <Text my={4}>
                 Using this app on your phone or computer means you can see when people want to speak.
             </Text>
         </Page>
