@@ -30,7 +30,7 @@ export default function MeetingStatus(props: MeetingStatusProps) {
             <Tabs isFitted>
                 <TabList>
                     <Tab>Queue</Tab>
-                    <Tab>Members</Tab>
+                    <Tab>Members ({meeting.members.size})</Tab>
                 </TabList>
                 <TabPanels>
                     <TabPanel>
