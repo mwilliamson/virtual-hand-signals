@@ -61,7 +61,9 @@ export default function HomePage() {
             </Text>
 
             <Text my={4}>
-                Using this app on your phone or computer means you can see when people want to speak.
+                Using this app on your phone or computer means you can see when people want to speak,
+                without requiring everyone to have both working video cameras and being able to see the video
+                of all participants.
             </Text>
         </Page>
     );
