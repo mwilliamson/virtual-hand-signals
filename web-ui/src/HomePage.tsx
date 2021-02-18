@@ -30,17 +30,38 @@ export default function HomePage() {
                 </ButtonGroup>
             </Center>
 
-            <Heading as="h2" size="sm" mt={4}>
+            <Heading as="h2" size="sm" my={4}>
                 Why use hand signals?
             </Heading>
 
+            <Text my={4}>
+                Hand signals are a way to make participation in meetings more equitable.
+                Free-form conversation tends to lead to the same people doing most of the talking,
+                whether because they're more senior, quicker to interrupt, have less laggy Internet connections,
+                or a host of other reasons.
+                In my experience, the quieter participants have thoughts that are just as valuable
+                &ndash; I've been in plenty of meetings where I wanted to ask for a clarification,
+                or had an important point to add, but couldn't get a word in before another speaker moved the conversation on &ndash;
+                so could adding a little structure give more equal opportunity to speak?
+            </Text>
+
             <Text>
+                This app takes inspiration from {" "}
                 <Link
                     color="blue.500"
                     href="https://gds.blog.gov.uk/2016/10/07/platform-as-a-service-team-takes-even-handed-approach-to-meetings/"
                 >
-                    Inspired by a blog post from the (UK) Government Digital Service (GDS).
+                    a blog post from the (UK) Government Digital Service (GDS)
                 </Link>
+                {" "} by suggesting hand signals as a visual way of indicating that you want to speak.
+                This can be especially useful when in a conference call,
+                but using the video in the call doesn't always work:
+                for instance, some people might not have their video turned on,
+                or you might not be able to see all the participants, such as when someone is presenting slides.
+            </Text>
+
+            <Text>
+                Using this app on your phone or computer means you can see when people want to speak.
             </Text>
         </Page>
     );
