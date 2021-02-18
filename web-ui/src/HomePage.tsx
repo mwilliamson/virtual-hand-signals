@@ -4,9 +4,8 @@ import {
     Center,
  } from "@chakra-ui/react";
 
-import { AppBar } from "./AppBar";
 import { useNavigation } from "./navigation";
-import PageContentContainer from "./PageContentContainer";
+import Page from "./Page";
 
 export default function HomePage() {
     const navigation = useNavigation();
@@ -20,16 +19,13 @@ export default function HomePage() {
     }
 
     return (
-        <>
-            <AppBar />
-            <PageContentContainer>
-                <Center>
-                    <ButtonGroup>
-                        <Button onClick={handleStartMeetingClick}>Start meeting</Button>
-                        <Button onClick={handleJoinMeetingClick}>Join meeting</Button>
-                    </ButtonGroup>
-                </Center>
-            </PageContentContainer>
-        </>
+        <Page>
+            <Center>
+                <ButtonGroup>
+                    <Button onClick={handleStartMeetingClick}>Start meeting</Button>
+                    <Button onClick={handleJoinMeetingClick}>Join meeting</Button>
+                </ButtonGroup>
+            </Center>
+        </Page>
     );
 }

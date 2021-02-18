@@ -8,20 +8,16 @@ import { useState } from "react";
 
 import { Meeting } from "../../server/lib/meetings";
 import * as api from "./api";
-import { AppBar } from "./AppBar";
 import { meetingNotFoundTitle, meetingNotFoundDescription, useErrorReporter } from "./errors";
 import * as localStorage from "./localStorage";
 import { useNavigation } from "./navigation";
-import PageContentContainer from "./PageContentContainer";
+import Page from "./Page";
 
 export default function JoinMeetingPage() {
     return (
-        <>
-            <AppBar>Join meeting</AppBar>
-            <PageContentContainer>
-                <JoinMeetingForm />
-            </PageContentContainer>
-        </>
+        <Page title="Join meeting">
+            <JoinMeetingForm />
+        </Page>
     );
 }
 

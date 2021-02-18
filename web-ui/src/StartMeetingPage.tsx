@@ -9,20 +9,16 @@ import { useState } from "react";
 
 import { Meeting } from "../../server/lib/meetings";
 import * as api from "./api";
-import { AppBar } from "./AppBar";
 import { useErrorReporter } from "./errors";
 import * as localStorage from "./localStorage";
 import { useNavigation } from "./navigation";
-import PageContentContainer from "./PageContentContainer";
+import Page from "./Page";
 
 export default function StartMeetingPage() {
     return (
-        <>
-            <AppBar>Start meeting</AppBar>
-            <PageContentContainer>
-                <StartMeetingForm />
-            </PageContentContainer>
-        </>
+        <Page title="Start meeting">
+            <StartMeetingForm />
+        </Page>
     );
 }
 

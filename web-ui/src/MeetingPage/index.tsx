@@ -1,8 +1,6 @@
 import {
-    Box,
     Button,
     Center,
-    Flex,
     FormControl,
     FormLabel,
     Input,
@@ -12,7 +10,6 @@ import { useLocation, useParams } from "react-router-dom";
 
 import { applyUpdate, ClientMessage, ClientMessages, Meeting, Member } from "server/lib/meetings";
 import { assertUnreachable } from "server/lib/types";
-import { AppBar as AppBarContainer } from "../AppBar";
 import * as api from "../api";
 import {
     ErrorAlert,
@@ -23,7 +20,7 @@ import {
 } from "../errors";
 import * as localStorage from "../localStorage";
 import { JoinMeetingHistoryState } from "../navigation";
-import PageContentContainer from "../PageContentContainer";
+import Page from "../Page";
 import HandSignalControl from "./HandSignalControl";
 import MeetingStatus from "./MeetingStatus";
 import SettingsMenu from "./SettingsMenu";
@@ -80,28 +77,22 @@ export default function MeetingPage() {
 
     if (state.type === "connecting") {
         return (
-            <AppBar meetingCode={meetingCode} />
+            <MeetingPageContainer meetingCode={meetingCode} />
         );
     } else if (state.type === "error") {
         return (
-            <>
-                <AppBar meetingCode={meetingCode} />
-                <PageContentContainer>
-                    <UnexpectedErrorAlert error={state.error} />
-                </PageContentContainer>
-            </>
+            <MeetingPageContainer meetingCode={meetingCode}>
+                <UnexpectedErrorAlert error={state.error} />
+            </MeetingPageContainer>
         );
     } else if (state.type === "meetingNotFound") {
         return (
-            <>
-                <AppBar meetingCode={meetingCode} />
-                <PageContentContainer>
-                    <ErrorAlert
-                        title={meetingNotFoundTitle}
-                        description={meetingNotFoundDescription(meetingCode)}
-                    />
-                </PageContentContainer>
-            </>
+            <MeetingPageContainer meetingCode={meetingCode}>
+                <ErrorAlert
+                    title={meetingNotFoundTitle}
+                    description={meetingNotFoundDescription(meetingCode)}
+                />
+            </MeetingPageContainer>
         );
     } else if (state.type === "connected") {
         return (
@@ -161,16 +152,11 @@ function MeetingPageJoining(props: MeetingPageJoiningProps) {
     }, [state]);
 
     return (
-        <>
-            <Box position="sticky" top={0}>
-                <AppBar meetingCode={meeting.meetingCode} />
-            </Box>
+        <MeetingPageContainer meetingCode={meeting.meetingCode}>
             {state == null && (
-                <PageContentContainer>
-                    <NameForm onSubmit={handleJoin} submitText="Join" />
-                </PageContentContainer>
+                <NameForm onSubmit={handleJoin} submitText="Join" />
             )}
-        </>
+        </MeetingPageContainer>
     );
 }
 
@@ -199,58 +185,53 @@ function MeetingPageJoined(props: MeetingPageJoinedProps) {
     }
 
     return (
-        <>
-            <Box position="sticky" top={0}>
-                <AppBar
-                    meetingCode={meeting.meetingCode}
-                    right={
-                        <SettingsMenu onChangeName={() => setChangeName(true)} />
-                    }
-                />
-                {!changeName && (
+        <MeetingPageContainer
+            meetingCode={meeting.meetingCode}
+            right={
+                <SettingsMenu onChangeName={() => setChangeName(true)} />
+            }
+            stickyTop={
+                !changeName && (
                     <Center>
                         <HandSignalControl
                             onChange={value => send(ClientMessages.setHandSignal(value))}
                             value={member.handSignal ?? null}
                         />
                     </Center>
-                )}
-            </Box>
-
-            <PageContentContainer>
-                {changeName ? (
-                    <NameForm
-                        initialValue={member.name}
-                        onSubmit={handleChangeName}
-                        submitText="Change name"
-                    />
-                ) : (
-                    <MeetingStatus meeting={meeting} member={member} />
-                )}
-            </PageContentContainer>
-        </>
+                )
+            }
+        >
+            {changeName ? (
+                <NameForm
+                    initialValue={member.name}
+                    onSubmit={handleChangeName}
+                    submitText="Change name"
+                />
+            ) : (
+                <MeetingStatus meeting={meeting} member={member} />
+            )}
+        </MeetingPageContainer>
     );
 }
 
-interface AppBarProps {
+interface MeetingPageContainerProps {
+    children?: React.ReactNode;
     meetingCode: string;
     right?: React.ReactNode;
+    stickyTop?: React.ReactNode;
 }
 
-function AppBar(props: AppBarProps) {
-    const {meetingCode, right} = props;
+function MeetingPageContainer(props: MeetingPageContainerProps) {
+    const {children, meetingCode, right, stickyTop} = props;
 
     return (
-        <AppBarContainer>
-            <Flex>
-                <Box flex="1 1 auto">
-                    Meeting code: {meetingCode}
-                </Box>
-                {right && (
-                    <Box>{right}</Box>
-                )}
-            </Flex>
-        </AppBarContainer>
+        <Page
+            title={`Meeting code: ${meetingCode}`}
+            right={right}
+            stickyTop={stickyTop}
+        >
+            {children}
+        </Page>
     );
 }
 

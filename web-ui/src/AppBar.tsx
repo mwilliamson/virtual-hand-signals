@@ -1,13 +1,14 @@
-import { Box } from "@chakra-ui/react";
+import { Box, Flex } from "@chakra-ui/react";
 
 import PageContentContainer from "./PageContentContainer";
 
 interface AppBarProps {
-    children?: React.ReactNode;
+    right?: React.ReactNode;
+    title?: React.ReactNode;
 }
 
 export function AppBar(props: AppBarProps) {
-    const {children = "Virtual hand signals"} = props;
+    const {right, title = "Virtual hand signals"} = props;
 
     return (
         <Box
@@ -21,7 +22,14 @@ export function AppBar(props: AppBarProps) {
             zIndex={100}
         >
             <PageContentContainer>
-                {children}
+                <Flex>
+                    <Box flex="1 1 auto">
+                        {title}
+                    </Box>
+                    {right && (
+                        <Box>{right}</Box>
+                    )}
+                </Flex>
             </PageContentContainer>
         </Box>
     );
