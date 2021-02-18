@@ -3,11 +3,11 @@ import { Box } from "@chakra-ui/react";
 import PageContentContainer from "./PageContentContainer";
 
 interface AppBarProps {
-    children: React.ReactNode;
+    children?: React.ReactNode;
 }
 
 export function AppBar(props: AppBarProps) {
-    const {children} = props;
+    const {children = "Virtual hand signals"} = props;
 
     return (
         <Box

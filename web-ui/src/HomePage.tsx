@@ -21,7 +21,7 @@ export default function HomePage() {
 
     return (
         <>
-            <AppBar>&nbsp;</AppBar>
+            <AppBar />
             <PageContentContainer>
                 <Center>
                     <ButtonGroup>
