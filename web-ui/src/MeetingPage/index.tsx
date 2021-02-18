@@ -23,7 +23,7 @@ import { JoinMeetingHistoryState } from "../navigation";
 import Page from "../Page";
 import HandSignalControl from "./HandSignalControl";
 import MeetingStatus from "./MeetingStatus";
-import SettingsMenu from "./SettingsMenu";
+import SettingsMenuItems from "./SettingsMenuItems";
 
 type State =
     | {type: "connecting"}
@@ -187,8 +187,8 @@ function MeetingPageJoined(props: MeetingPageJoinedProps) {
     return (
         <MeetingPageContainer
             meetingCode={meeting.meetingCode}
-            right={
-                <SettingsMenu onChangeName={() => setChangeName(true)} />
+            settingsMenuItems={
+                <SettingsMenuItems onChangeName={() => setChangeName(true)} />
             }
             stickyTop={
                 !changeName && (
@@ -217,17 +217,17 @@ function MeetingPageJoined(props: MeetingPageJoinedProps) {
 interface MeetingPageContainerProps {
     children?: React.ReactNode;
     meetingCode: string;
-    right?: React.ReactNode;
+    settingsMenuItems?: React.ReactNode;
     stickyTop?: React.ReactNode;
 }
 
 function MeetingPageContainer(props: MeetingPageContainerProps) {
-    const {children, meetingCode, right, stickyTop} = props;
+    const {children, meetingCode, settingsMenuItems, stickyTop} = props;
 
     return (
         <Page
             title={`Meeting code: ${meetingCode}`}
-            right={right}
+            settingsMenuItems={settingsMenuItems}
             stickyTop={stickyTop}
         >
             {children}

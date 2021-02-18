@@ -1,14 +1,22 @@
-import { Box, Flex } from "@chakra-ui/react";
+import {
+    Box,
+    Flex,
+    IconButton,
+    Menu,
+    MenuButton,
+    MenuList,
+ } from "@chakra-ui/react";
+import MoreVertIcon from "@material-ui/icons/MoreVert";
 
 import PageContentContainer from "./PageContentContainer";
 
 interface AppBarProps {
-    right?: React.ReactNode;
+    settingsMenuItems?: React.ReactNode;
     title?: React.ReactNode;
 }
 
 export function AppBar(props: AppBarProps) {
-    const {right, title = "Virtual hand signals"} = props;
+    const {settingsMenuItems, title = "Virtual hand signals"} = props;
 
     return (
         <Box
@@ -26,8 +34,22 @@ export function AppBar(props: AppBarProps) {
                     <Box flex="1 1 auto">
                         {title}
                     </Box>
-                    {right && (
-                        <Box>{right}</Box>
+                    {settingsMenuItems && (
+                        <Box>
+                            <Menu placement="bottom-end">
+                                <MenuButton
+                                    display="block"
+                                    as={IconButton}
+                                    icon={<MoreVertIcon />}
+                                    variant="unstyled"
+                                    size="xs"
+                                    aria-label="Settings"
+                                />
+                                <MenuList color="black">
+                                    {settingsMenuItems}
+                                </MenuList>
+                            </Menu>
+                        </Box>
                     )}
                 </Flex>
             </PageContentContainer>

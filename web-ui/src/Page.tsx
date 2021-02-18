@@ -6,17 +6,17 @@ import PageContentContainer from "./PageContentContainer";
 interface PageProps {
     children: React.ReactNode;
     title?: React.ReactNode;
-    right?: React.ReactNode;
+    settingsMenuItems?: React.ReactNode;
     stickyTop?: React.ReactNode;
 }
 
 export default function Page(props: PageProps) {
-    const {children, right, stickyTop, title} = props;
+    const {children, settingsMenuItems, stickyTop, title} = props;
 
     return (
         <>
             <Box position="sticky" top={0}>
-                <AppBar right={right} title={title} />
+                <AppBar settingsMenuItems={settingsMenuItems} title={title} />
                 {stickyTop}
             </Box>
             <PageContentContainer>
