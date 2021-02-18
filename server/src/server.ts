@@ -1,4 +1,5 @@
 import * as http from "http";
+import * as path from "path";
 import * as url from "url";
 
 import cors from "cors";
@@ -27,6 +28,7 @@ export function createServer({port}: {port: number}) {
     const app = express();
     app.use(express.json());
     app.use(cors());
+    app.use(express.static(path.join(__dirname, "../../web-ui/build")))
 
     const CreateMeetingRequestBody = t.union([
         t.undefined,
