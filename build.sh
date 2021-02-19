@@ -3,7 +3,7 @@
 set -e
 
 pushd server
-NPM_CONFIG_PRODUCTION=false npm install
+npm install
 npm run build
 popd
 
