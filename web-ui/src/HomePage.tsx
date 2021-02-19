@@ -37,7 +37,7 @@ export default function HomePage() {
             <Text my={4}>
                 Hand signals are a way to make participation in meetings more equitable.
                 Free-form conversation tends to lead to the same people doing most of the talking,
-                whether because they're more senior, quicker to interrupt, have less laggy Internet connections,
+                whether because they're more senior, quicker to speak, have less laggy Internet connections,
                 or a host of other reasons.
                 In my experience, the quieter participants have thoughts that are just as valuable
                 &ndash; I've been in plenty of meetings where I wanted to ask for a clarification,
