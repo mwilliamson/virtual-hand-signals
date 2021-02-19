@@ -2,9 +2,11 @@
 
 set -e
 
+pushd server
+npm install
+popd
+
 pushd web-ui
 npm install
 npm run build
 popd
-cd server
-npm install
