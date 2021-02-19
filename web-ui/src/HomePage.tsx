@@ -23,14 +23,14 @@ export default function HomePage() {
 
     return (
         <Page>
-            <Center>
+            <Center my={10}>
                 <ButtonGroup>
                     <Button onClick={handleStartMeetingClick}>Start meeting</Button>
                     <Button onClick={handleJoinMeetingClick}>Join meeting</Button>
                 </ButtonGroup>
             </Center>
 
-            <Heading as="h2" size="sm" my={4}>
+            <Heading as="h2" size="sm" mt={10} mb={4}>
                 Why use hand signals?
             </Heading>
 
