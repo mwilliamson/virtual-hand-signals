@@ -152,22 +152,22 @@ export function applyUpdate(meeting: Meeting, update: Update): Meeting {
             name: update.name,
         }));
     } else if (update.type === "setHandSignal") {
-        const meeting2 = Meetings.updateMemberByMemberId(meeting, update.memberId, member => ({
+        meeting = Meetings.updateMemberByMemberId(meeting, update.memberId, member => ({
             ...member,
             handSignal: update.handSignal,
         }));
 
-        if (meeting2.queue === null) {
+        if (meeting.queue === null) {
             return meeting;
         } else if (update.handSignal === null) {
             return {
-                ...meeting2,
-                queue: meeting2.queue.filter(memberId => update.memberId !== memberId),
+                ...meeting,
+                queue: meeting.queue.filter(memberId => update.memberId !== memberId),
             };
-        } else if (!meeting2.queue.includes(update.memberId))  {
+        } else if (!meeting.queue.includes(update.memberId))  {
             return {
-                ...meeting2,
-                queue: meeting2.queue.push(update.memberId),
+                ...meeting,
+                queue: meeting.queue.push(update.memberId),
             };
         } else {
             return meeting;
