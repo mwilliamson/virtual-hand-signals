@@ -3,6 +3,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "build": "tsc",
     "watch": "tsc --watch",
     "test": "mocha test.js --ui exports",
     "start": "node lib/server.js"

@@ -4,6 +4,7 @@ set -e
 
 pushd server
 npm install
+npm run build
 popd
 
 pushd web-ui
