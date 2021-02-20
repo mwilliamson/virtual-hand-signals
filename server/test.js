@@ -39,7 +39,7 @@ exports["meeting has no queue by default"] = withServer(async (server) => {
    const response = await server.get(`/api/meetings/${meetingCode}`);
 
    assert.strictEqual(response.status, 200);
-   assert.strictEqual(response.data.hasQueue, false);
+   assert.strictEqual(response.data.queue, null);
 });
 
 exports["meeting can be created with queue"] = withServer(async (server) => {
@@ -48,7 +48,7 @@ exports["meeting can be created with queue"] = withServer(async (server) => {
    const response = await server.get(`/api/meetings/${meetingCode}`);
 
    assert.strictEqual(response.status, 200);
-   assert.strictEqual(response.data.hasQueue, true);
+   assert.deepStrictEqual(response.data.queue, []);
 });
 
 exports["POSTing to /api/meetings creates meeting that can be GETed"] = withServer(async (server) => {
