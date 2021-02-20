@@ -27,29 +27,29 @@ suite(__filename, function() {
     test("POSTing to /api/meetings creates meeting that can be GETed", withServer(async (server) => {
         const {data: {meetingCode}} = await server.postOk("/api/meetings");
 
-       const response = await server.get(`/api/meetings/${meetingCode}`);
+        const response = await server.get(`/api/meetings/${meetingCode}`);
 
-       assert.strictEqual(response.status, 200);
-       assert.deepStrictEqual(response.data.meetingCode, meetingCode);
-       assert.deepStrictEqual(response.data.members, []);
+        assert.strictEqual(response.status, 200);
+        assert.deepStrictEqual(response.data.meetingCode, meetingCode);
+        assert.deepStrictEqual(response.data.members, []);
     }));
 
     test("meeting has no queue by default", withServer(async (server) => {
         const {data: {meetingCode}} = await server.postOk("/api/meetings");
 
-       const response = await server.get(`/api/meetings/${meetingCode}`);
+        const response = await server.get(`/api/meetings/${meetingCode}`);
 
-       assert.strictEqual(response.status, 200);
-       assert.strictEqual(response.data.queue, null);
+        assert.strictEqual(response.status, 200);
+        assert.strictEqual(response.data.queue, null);
     }));
 
     test("meeting can be created with queue", withServer(async (server) => {
         const {data: {meetingCode}} = await server.postOk("/api/meetings", {hasQueue: true});
 
-       const response = await server.get(`/api/meetings/${meetingCode}`);
+        const response = await server.get(`/api/meetings/${meetingCode}`);
 
-       assert.strictEqual(response.status, 200);
-       assert.deepStrictEqual(response.data.queue, []);
+        assert.strictEqual(response.status, 200);
+        assert.deepStrictEqual(response.data.queue, []);
     }));
 
     test("POSTing to /api/meetings creates meeting that can be joined", withServer(async (server) => {
