@@ -41,6 +41,44 @@ suite(__filename, function () {
 
                 assert.deepStrictEqual(result.members.keySeq().toJSON(), ["2", "1"]);
             });
+
+            test("when memberId is already in members then name is updated without changing order", function () {
+                const meeting = createMeeting({members: OrderedMap()});
+
+                let result = meetings.applyUpdate(meeting, {
+                    type: "join",
+                    memberId: "2",
+                    name: "Bob",
+                });
+                result = meetings.applyUpdate(result, {
+                    type: "join",
+                    memberId: "1",
+                    name: "Alice",
+                });
+                result = meetings.applyUpdate(result, {
+                    type: "setHandSignal",
+                    memberId: "2",
+                    handSignal: "agree",
+                });
+                result = meetings.applyUpdate(result, {
+                    type: "join",
+                    memberId: "2",
+                    name: "Robert",
+                });
+
+                assert.deepStrictEqual(result.members.entrySeq().toJSON(), [
+                    ["2", {
+                        handSignal: "agree",
+                        memberId: "2",
+                        name: "Robert",
+                    }],
+                    ["1", {
+                        handSignal: null,
+                        memberId: "1",
+                        name: "Alice",
+                    }],
+                ]);
+            });
         });
     });
 });

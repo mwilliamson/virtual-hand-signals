@@ -133,14 +133,20 @@ export const ServerMessages = {
 
 export function applyUpdate(meeting: Meeting, update: Update): Meeting {
     if (update.type === "join") {
-        // TODO: handle multiple joins
-        return {
-            ...meeting,
-            members: meeting.members.set(
-                update.memberId,
-                {memberId: update.memberId, name: update.name, handSignal: null},
-            ),
-        };
+        if (meeting.members.has(update.memberId)) {
+            return Meetings.updateMemberByMemberId(meeting, update.memberId, member => ({
+                ...member,
+                name: update.name,
+            }));
+        } else {
+            return {
+                ...meeting,
+                members: meeting.members.set(
+                    update.memberId,
+                    {memberId: update.memberId, name: update.name, handSignal: null},
+                ),
+            };
+        }
     } else if (update.type === "leave") {
         return {
             ...meeting,
