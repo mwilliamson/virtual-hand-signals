@@ -2,7 +2,7 @@ import assert from "assert";
 
 import { List, OrderedMap } from "immutable";
 
-import * as meetings from "../lib/meetings";
+import { applyUpdate, Meeting, Updates } from "../lib/meetings";
 
 suite(__filename, function () {
     suite("applyUpdate", function () {
@@ -10,11 +10,7 @@ suite(__filename, function () {
             test("when memberId is not already in members then member is added", function () {
                 const meeting = createMeeting({members: OrderedMap()});
 
-                const result = meetings.applyUpdate(meeting, {
-                    type: "join",
-                    memberId: "1",
-                    name: "Bob",
-                });
+                const result = applyUpdate(meeting, Updates.join({memberId: "1", name: "Bob"}));
 
                 assert.deepStrictEqual(result.members.entrySeq().toJSON(), [
                     ["1", {
@@ -28,16 +24,8 @@ suite(__filename, function () {
             test("members preserves join order", function () {
                 const meeting = createMeeting({members: OrderedMap()});
 
-                let result = meetings.applyUpdate(meeting, {
-                    type: "join",
-                    memberId: "2",
-                    name: "Bob",
-                });
-                result = meetings.applyUpdate(result, {
-                    type: "join",
-                    memberId: "1",
-                    name: "Alice",
-                });
+                let result = applyUpdate(meeting, Updates.join({memberId: "2", name: "Bob"}));
+                result = applyUpdate(result, Updates.join({memberId: "1", name: "Alice"}));
 
                 assert.deepStrictEqual(result.members.keySeq().toJSON(), ["2", "1"]);
             });
@@ -45,26 +33,10 @@ suite(__filename, function () {
             test("when memberId is already in members then name is updated without changing order", function () {
                 const meeting = createMeeting({members: OrderedMap()});
 
-                let result = meetings.applyUpdate(meeting, {
-                    type: "join",
-                    memberId: "2",
-                    name: "Bob",
-                });
-                result = meetings.applyUpdate(result, {
-                    type: "join",
-                    memberId: "1",
-                    name: "Alice",
-                });
-                result = meetings.applyUpdate(result, {
-                    type: "setHandSignal",
-                    memberId: "2",
-                    handSignal: "agree",
-                });
-                result = meetings.applyUpdate(result, {
-                    type: "join",
-                    memberId: "2",
-                    name: "Robert",
-                });
+                let result = applyUpdate(meeting, Updates.join({memberId: "2", name: "Bob"}));
+                result = applyUpdate(result, Updates.join({memberId: "1", name: "Alice"}));
+                result = applyUpdate(result, Updates.setHandSignal({memberId: "2", handSignal: "agree"}));
+                result = applyUpdate(result, Updates.join({memberId: "2", name: "Robert"}));
 
                 assert.deepStrictEqual(result.members.entrySeq().toJSON(), [
                     ["2", {
@@ -83,7 +55,7 @@ suite(__filename, function () {
     });
 });
 
-function createMeeting(meeting: Partial<meetings.Meeting>): meetings.Meeting {
+function createMeeting(meeting: Partial<Meeting>): Meeting {
     return {
         meetingCode: "<meetingCode>",
         members: OrderedMap(),

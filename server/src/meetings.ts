@@ -113,6 +113,10 @@ export const Updates = {
     leave({memberId}: {memberId: string}): Update {
         return {type: "leave", memberId: memberId};
     },
+
+    setHandSignal({memberId, handSignal}: {memberId: string, handSignal: string}): Update {
+        return {type: "setHandSignal", memberId: memberId, handSignal: handSignal};
+    },
 };
 
 export const ServerMessages = {
