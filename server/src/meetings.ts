@@ -103,7 +103,21 @@ export const ServerMessage = t.union([
     }),
 ]);
 
+export const Updates = {
+    notFound: {type: "notFound" as "notFound"},
+
+    join({memberId, name}: {memberId: string, name: string}): Update {
+        return {type: "join", memberId: memberId, name: name}
+    },
+
+    leave({memberId}: {memberId: string}): Update {
+        return {type: "leave", memberId: memberId};
+    },
+};
+
 export const ServerMessages = {
+    ...Updates,
+
     toJson(message: ServerMessage) {
         return ServerMessage.encode(message);
     },
@@ -118,16 +132,6 @@ export const ServerMessages = {
 
     invalid(message: unknown): ServerMessage {
         return {type: "invalid", message: message};
-    },
-
-    notFound: {type: "notFound" as "notFound"},
-
-    join({memberId, name}: {memberId: string, name: string}): Update {
-        return {type: "join", memberId: memberId, name: name}
-    },
-
-    leave({memberId}: {memberId: string}): Update {
-        return {type: "leave", memberId: memberId};
     },
 }
 
