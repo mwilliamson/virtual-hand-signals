@@ -31,6 +31,6 @@
     "typescript": "^4.1.5"
   },
   "mocha": {
-    "ui": "exports"
+    "ui": "tdd"
   }
 }
