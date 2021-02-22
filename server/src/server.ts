@@ -87,7 +87,7 @@ export function createServer({port}: {port: number}) {
                 ponged = false;
                 ws.ping();
             }
-        }, 1000);
+        }, 10000);
 
         send(ws, ServerMessages.initial({meeting: initialMeeting, memberId}));
 
