@@ -34,24 +34,32 @@ export function createServer({port}: {port: number}) {
         }),
     ]);
 
-    app.post("/api/meetings", (request, response) => {
-        const bodyResult = CreateMeetingRequestBody.decode(request.body);
-        if (isLeft(bodyResult)) {
-            response.status(400).send();
-        } else {
-            const {hasQueue = false} = bodyResult.right ?? {};
-            const meeting = meetings.createMeeting({hasQueue: hasQueue});
-            response.send(Meeting.encode(meeting));
+    app.post("/api/meetings", async (request, response, next) => {
+        try {
+            const bodyResult = CreateMeetingRequestBody.decode(request.body);
+            if (isLeft(bodyResult)) {
+                response.status(400).send();
+            } else {
+                const {hasQueue = false} = bodyResult.right ?? {};
+                const meeting = await meetings.createMeeting({hasQueue: hasQueue});
+                response.send(Meeting.encode(meeting));
+            }
+        } catch (error) {
+            next(error);
         }
     });
 
-    app.get("/api/meetings/:meetingCode", (request, response) => {
-        const {meetingCode} = request.params;
-        const meeting = meetings.get(meetingCode);
-        if (meeting === undefined) {
-            response.status(404).send();
-        } else {
-            response.send(Meeting.encode(meeting));
+    app.get("/api/meetings/:meetingCode", async (request, response, next) => {
+        try {
+            const {meetingCode} = request.params;
+            const meeting = await meetings.get(meetingCode);
+            if (meeting === undefined) {
+                response.status(404).send();
+            } else {
+                response.send(Meeting.encode(meeting));
+            }
+        } catch (error) {
+            next(error);
         }
     });
 
@@ -88,18 +96,18 @@ export function createServer({port}: {port: number}) {
 
         send(ws, ServerMessages.initial({meeting: initialMeeting, memberId}));
 
-        function processMessage(message: ClientMessage): void {
+        async function processMessage(message: ClientMessage): Promise<void> {
             const update = clientMessageToUpdate(memberId, message);
             if (update === null) {
                 send(ws, ServerMessages.invalid(message));
             } else {
-                processUpdate(update);
+                await processUpdate(update);
             }
         }
 
-        function processUpdate(update: Update): void {
+        async function processUpdate(update: Update): Promise<void> {
             // TODO: Handle undefined meeting
-            meetings.update(initialMeeting.meetingCode, meeting => applyUpdate(meeting!!, update));
+            await meetings.update(initialMeeting.meetingCode, meeting => applyUpdate(meeting!!, update));
             wss.clients.forEach((ws) => send(ws, update));
         }
 
@@ -114,8 +122,9 @@ export function createServer({port}: {port: number}) {
         });
     }
 
-    wss.on("connection", function connection(ws, request) {
-        const initialMeeting = (request as any).meeting as Meeting | null;
+    wss.on("connection", async function connection(ws, request) {
+        const meetingCode = (request as any).meetingCode as string;
+        const initialMeeting: Meeting | null = await meetings.get(meetingCode) ?? null;
 
         if (initialMeeting === null) {
             send(ws, ServerMessages.notFound);
@@ -128,12 +137,16 @@ export function createServer({port}: {port: number}) {
     server.on("upgrade", function upgrade(request, socket, head) {
         const requestPath = url.parse(request.url).pathname;
         const result = requestPath && /^\/api\/meetings\/([^\/]+)$/.exec(requestPath);
-        const meeting: Meeting | null = result === null ? null : meetings.get(result[1]) ?? null;
+        if (result === null) {
+            socket.destroy();
+        } else {
+            const meetingCode = result[1];
 
-        request.meeting = meeting;
-        wss.handleUpgrade(request, socket, head, function done(ws) {
-            wss.emit("connection", ws, request);
-        });
+            request.meetingCode = meetingCode;
+            wss.handleUpgrade(request, socket, head, function done(ws) {
+                wss.emit("connection", ws, request);
+            });
+        }
     });
 
     server.listen(port);

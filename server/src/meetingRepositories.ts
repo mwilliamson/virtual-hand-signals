@@ -3,10 +3,16 @@ import { List, OrderedMap } from "immutable";
 
 import { Meeting } from "./meetings";
 
-export function createMeetingRepository() {
+interface MeetingRepository {
+    createMeeting: (options: {hasQueue: boolean}) => Promise<Meeting>;
+    get: (meetingCode: string) => Promise<Meeting | undefined>;
+    update: (meetingCode: string, f: (meeting: Meeting | undefined) => Meeting) => Promise<void>;
+}
+
+export function createMeetingRepository(): MeetingRepository {
     const meetings = new Map<string, Meeting>();
 
-    function createMeeting({hasQueue}: {hasQueue: boolean}): Meeting {
+    async function createMeeting({hasQueue}: {hasQueue: boolean}): Promise<Meeting> {
         while (true) {
             const meetingCode = generateMeetingCode();
             if (!meetings.has(meetingCode)) {
@@ -21,12 +27,12 @@ export function createMeetingRepository() {
         }
     }
 
-    function get(meetingCode: string): Meeting | undefined {
+    async function get(meetingCode: string): Promise<Meeting | undefined> {
         return meetings.get(meetingCode);
     }
 
-    function update(meetingCode: string, f: (meeting: Meeting | undefined) => Meeting): void {
-        const newMeeting = f(get(meetingCode));
+    async function update(meetingCode: string, f: (meeting: Meeting | undefined) => Meeting): Promise<void> {
+        const newMeeting = f(await get(meetingCode));
         save(newMeeting);
     }
 
