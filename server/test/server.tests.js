@@ -195,7 +195,7 @@ function wrapWebSocket(ws) {
 
 function withServer(func) {
     return async () => {
-        const server = createServer({port: TEST_PORT});
+        const server = await createServer({port: TEST_PORT});
         const webSockets = [];
 
         try {

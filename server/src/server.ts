@@ -20,8 +20,8 @@ import {
 } from "./meetings";
 import { createMeetingRepository } from "./meetingRepositories";
 
-export function createServer({port}: {port: number}) {
-    const meetings = createMeetingRepository();
+export async function createServer({port}: {port: number}) {
+    const meetings = await createMeetingRepository();
 
     const app = express();
     app.use(express.json());
@@ -154,8 +154,12 @@ export function createServer({port}: {port: number}) {
     return server;
 }
 
-if (require.main === module) {
+async function main() {
     const port = parseInt(process.env.PORT || "8000", 10);
-    createServer({port: port});
+    await createServer({port: port});
     console.log(`server started on port ${port}`);
+}
+
+if (require.main === module) {
+    main();
 }
