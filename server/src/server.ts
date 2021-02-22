@@ -23,8 +23,6 @@ import { createMeetingRepository } from "./meetingRepositories";
 export function createServer({port}: {port: number}) {
     const meetings = createMeetingRepository();
 
-    const saveMeeting = (meeting: Meeting) => meetings.set(meeting.meetingCode, meeting);
-
     const app = express();
     app.use(express.json());
     app.use(cors());
@@ -43,7 +41,6 @@ export function createServer({port}: {port: number}) {
         } else {
             const {hasQueue = false} = bodyResult.right ?? {};
             const meeting = meetings.createMeeting({hasQueue: hasQueue});
-            saveMeeting(meeting);
             response.send(Meeting.encode(meeting));
         }
     });
@@ -102,9 +99,7 @@ export function createServer({port}: {port: number}) {
 
         function processUpdate(update: Update): void {
             // TODO: Handle undefined meeting
-            const meeting = meetings.get(initialMeeting.meetingCode)!!;
-            const newMeeting = applyUpdate(meeting, update);
-            saveMeeting(newMeeting);
+            meetings.update(initialMeeting.meetingCode, meeting => applyUpdate(meeting!!, update));
             wss.clients.forEach((ws) => send(ws, update));
         }
 

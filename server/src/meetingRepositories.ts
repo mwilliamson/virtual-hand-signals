@@ -10,11 +10,13 @@ export function createMeetingRepository() {
         while (true) {
             const meetingCode = generateMeetingCode();
             if (!meetings.has(meetingCode)) {
-                return {
+                const meeting: Meeting = {
                     meetingCode: meetingCode,
                     members: OrderedMap(),
                     queue: hasQueue ? List() : null,
                 };
+                save(meeting);
+                return meeting;
             }
         }
     }
@@ -23,14 +25,19 @@ export function createMeetingRepository() {
         return meetings.get(meetingCode);
     }
 
-    function set(meetingCode: string, meeting: Meeting): void {
-        meetings.set(meetingCode, meeting);
+    function update(meetingCode: string, f: (meeting: Meeting | undefined) => Meeting): void {
+        const newMeeting = f(get(meetingCode));
+        save(newMeeting);
+    }
+
+    function save(meeting: Meeting) {
+        meetings.set(meeting.meetingCode, meeting);
     }
 
     return {
         createMeeting: createMeeting,
         get: get,
-        set: set,
+        update: update,
     };
 }
 
