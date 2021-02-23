@@ -1,5 +1,7 @@
 import cryptoRandomString from "crypto-random-string";
+import { isLeft } from "fp-ts/Either";
 import { List, OrderedMap } from "immutable";
+import * as t from "io-ts";
 
 import { Meeting } from "./meetings";
 import * as store from "./store";
@@ -11,7 +13,7 @@ interface MeetingRepository {
 }
 
 export async function createMeetingRepository({meetingStore}: {
-    meetingStore: store.Store<string, Meeting>,
+    meetingStore: MeetingStore,
 }): Promise<MeetingRepository> {
     return newMeetingRepository({
         generateMeetingCode: generateMeetingCode,
@@ -19,9 +21,11 @@ export async function createMeetingRepository({meetingStore}: {
     });
 }
 
+export type MeetingStore = store.Store<string, t.OutputOf<typeof Meeting>>;
+
 export function newMeetingRepository({generateMeetingCode, meetings}: {
     generateMeetingCode: () => string,
-    meetings: store.Store<string, Meeting>
+    meetings: MeetingStore,
 }) {
     async function createMeeting({hasQueue}: {hasQueue: boolean}): Promise<Meeting> {
         while (true) {
@@ -42,14 +46,27 @@ export function newMeetingRepository({generateMeetingCode, meetings}: {
     }
 
     async function get(meetingCode: string): Promise<Meeting | undefined> {
-        const result = await meetings.get(meetingCode);
-        return result.value;
+        const getResult = await meetings.get(meetingCode);
+        return decodeStoreValue(getResult.value);
+    }
+
+    function decodeStoreValue(value: undefined | t.OutputOf<typeof Meeting>): Meeting | undefined {
+        if (value === undefined) {
+            return undefined;
+        } else {
+            const decodeResult = Meeting.decode(value);
+            if (isLeft(decodeResult)) {
+                throw new Error("could not decode value from store");
+            } else {
+                return decodeResult.right;
+            }
+        }
     }
 
     async function update(meetingCode: string, f: (meeting: Meeting | undefined) => Meeting): Promise<void> {
         while (true) {
             const getResult = await meetings.get(meetingCode);
-            const newMeeting = f(getResult.value);
+            const newMeeting = f(decodeStoreValue(getResult.value));
             const saveResult = await save(getResult.version, newMeeting);
             if (saveResult === store.SetResult.Success) {
                 return;
@@ -58,7 +75,11 @@ export function newMeetingRepository({generateMeetingCode, meetings}: {
     }
 
     async function save(previousVersion: number | null, meeting: Meeting): Promise<store.SetResult> {
-        return await meetings.set(meeting.meetingCode, previousVersion, meeting);
+        return await meetings.set(
+            meeting.meetingCode,
+            previousVersion,
+            Meeting.encode(meeting),
+        );
     }
 
     return {

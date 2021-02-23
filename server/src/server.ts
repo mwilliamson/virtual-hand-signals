@@ -6,6 +6,7 @@ import cors from "cors";
 import express from "express";
 import { isLeft } from "fp-ts/Either";
 import * as t from "io-ts";
+import * as pg from "pg";
 import * as uuid from "uuid";
 import WebSocket from "ws";
 
@@ -18,12 +19,12 @@ import {
     ServerMessages,
     Update,
 } from "./meetings";
-import { createMeetingRepository } from "./meetingRepositories";
+import { createMeetingRepository, MeetingStore } from "./meetingRepositories";
 import * as store from "./store";
 
 export async function createServer({port, meetingStore}: {
     port: number,
-    meetingStore: store.Store<string, Meeting>,
+    meetingStore: MeetingStore,
 }) {
     const meetings = await createMeetingRepository({meetingStore});
 
@@ -160,7 +161,16 @@ export async function createServer({port, meetingStore}: {
 
 async function main() {
     const port = parseInt(process.env.PORT || "8000", 10);
-    await createServer({port: port, meetingStore: store.inMemory()});
+
+    const meetingStore: MeetingStore = process.env.DATABASE_URL
+        ? await store.postgres({
+            pool: new pg.Pool({connectionString: process.env.DATABASE_URL}),
+            tableName: "meetings",
+        })
+        : await store.inMemory()
+
+
+    await createServer({port: port, meetingStore: meetingStore});
     console.log(`server started on port ${port}`);
 }
 
