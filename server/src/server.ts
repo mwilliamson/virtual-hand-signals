@@ -18,6 +18,7 @@ import {
     ServerMessage,
     ServerMessages,
     Update,
+    Updates,
 } from "./meetings";
 import { createMeetingRepository, MeetingStore } from "./meetingRepositories";
 import * as store from "./store";
@@ -27,6 +28,8 @@ export async function createServer({port, meetingStore}: {
     meetingStore: MeetingStore,
 }) {
     const meetings = await createMeetingRepository({meetingStore});
+
+    const connectedMemberIds = new Set<string>();
 
     const app = express();
     app.use(express.json());
@@ -89,6 +92,7 @@ export async function createServer({port, meetingStore}: {
         ws.on("pong", () => ponged = true);
 
         const memberId = uuid.v4();
+        connectedMemberIds.add(memberId);
 
         const intervalId = setInterval(() => {
             if (!ponged) {
@@ -106,19 +110,35 @@ export async function createServer({port, meetingStore}: {
             if (update === null) {
                 send(ws, ServerMessages.invalid(message));
             } else {
+                // TODO: This cleans up disconnected clients, but only works when using a single server
+                const meeting = await meetings.get(initialMeeting.meetingCode);
+                if (meeting !== undefined) {
+                    for (const memberId of meeting.members.keySeq()) {
+                        if (!connectedMemberIds.has(memberId)) {
+                            await processUpdate(Updates.leave({memberId}));
+                        }
+                    }
+                }
                 await processUpdate(update);
             }
         }
 
         async function processUpdate(update: Update): Promise<void> {
-            // TODO: Handle undefined meeting
-            await meetings.update(initialMeeting.meetingCode, meeting => applyUpdate(meeting!!, update));
+            await meetings.update(
+                initialMeeting.meetingCode,
+                // TODO: Handle undefined meeting
+                maybeMeeting => {
+                    const meeting = maybeMeeting!!;
+                    return applyUpdate(meeting, update);
+                },
+            );
             wss.clients.forEach((ws) => send(ws, update));
         }
 
         ws.on("close", () => {
             clearInterval(intervalId);
-            processUpdate(ServerMessages.leave({memberId}));
+            processUpdate(Updates.leave({memberId}));
+            connectedMemberIds.delete(memberId);
         });
 
         ws.on("message", function incoming(messageBuffer) {
