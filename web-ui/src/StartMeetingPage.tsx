@@ -7,7 +7,7 @@ import {
  } from "@chakra-ui/react";
 import { useState } from "react";
 
-import { MeetingDetails } from "../../server/lib/meetings";
+import { Meeting } from "../../server/lib/meetings";
 import * as api from "./api";
 import { useErrorReporter } from "./errors";
 import * as localStorage from "./localStorage";
@@ -33,7 +33,7 @@ function StartMeetingForm() {
     const handleSubmit = async (event: React.SyntheticEvent) => {
         event.preventDefault();
 
-        let meeting: MeetingDetails;
+        let meeting: Meeting;
         try {
             meeting = await api.startMeeting({hasQueue: hasQueue});
         } catch (error) {
