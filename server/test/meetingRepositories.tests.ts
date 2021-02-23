@@ -102,14 +102,15 @@ suite(__filename, function () {
 });
 
 function fakeStore() {
-    return td.object<store.Store<string, Meeting>>();
+    return td.object<meetingRepositories.MeetingStore>();
 }
 
-function createMeeting(meeting: Partial<Meeting> = {}): Meeting {
-    return {
+function createMeeting(meeting: Partial<Meeting> = {}) {
+    const fullMeeting: Meeting = {
         meetingCode: "<meeting code>",
         members: OrderedMap(),
         queue: List(),
         ...meeting,
     };
+    return Meeting.encode(fullMeeting);
 }
