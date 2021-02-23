@@ -6,12 +6,11 @@ import cors from "cors";
 import express from "express";
 import { isLeft } from "fp-ts/Either";
 import * as t from "io-ts";
-import { Duration, Instant } from "@js-joda/core";
+import { Duration } from "@js-joda/core";
 import * as pg from "pg";
 import * as uuid from "uuid";
 import WebSocket from "ws";
 
-import { ConnectionRepository, createConnectionRepository } from "./connections";
 import {
     applyUpdate,
     ClientMessage,
@@ -25,33 +24,17 @@ import {
 import { createMeetingRepository, MeetingRepository, MeetingStore } from "./meetingRepositories";
 import * as store from "./store";
 
-export function createServer({port, connectionRepository, meetingRepository}: {
+export function createServer({port, meetingRepository}: {
     port: number,
-    connectionRepository: ConnectionRepository,
     meetingRepository: MeetingRepository,
 }) {
-    // Inactivity is detected by pings, so we should make sure the ping
-    // interval is considerably less than the inactivityInterval
-    const inactivityInterval = Duration.ofSeconds(20);
     const pingInterval = Duration.ofSeconds(10);
 
-    function startConnectionReaper() {
-        async function reap() {
-            const inactiveConnections = await connectionRepository.fetchInactive(inactivityInterval);
-            for (const connection of inactiveConnections) {
-                processUpdate(
-                    connection.meetingCode,
-                    Updates.leave({memberId: connection.memberId}),
-                );
-            }
-        }
-
-        setInterval(reap, inactivityInterval.toMillis());
+    interface Connection {
+        clientWebSocket: WebSocket;
     }
 
-    startConnectionReaper();
-
-    const webSocketClientsByMeetingCode = new Map<string, Set<WebSocket>>();
+    const connectionsByMeetingCode = new Map<string, Set<Connection>>();
 
     const app = express();
     app.use(express.json());
@@ -117,33 +100,35 @@ export function createServer({port, connectionRepository, meetingRepository}: {
                 return applyUpdate(meeting, update);
             },
         );
-        const meetingWebSocketClients = webSocketClientsByMeetingCode.get(meetingCode) ?? new Set();
-        meetingWebSocketClients.forEach((ws) => send(ws, update));
+        const meetingConnections = connectionsByMeetingCode.get(meetingCode) ?? new Set();
+        meetingConnections.forEach(connection => send(connection.clientWebSocket, update));
     }
 
     const initConnection = async (ws: WebSocket, initialMeeting: Meeting) => {
         const {meetingCode} = initialMeeting;
 
-        if (!webSocketClientsByMeetingCode.has(meetingCode)) {
-            webSocketClientsByMeetingCode.set(meetingCode, new Set());
+        if (!connectionsByMeetingCode.has(meetingCode)) {
+            connectionsByMeetingCode.set(meetingCode, new Set());
+
+            // This relies on the assumption that there's only ever one server running
+            // TODO: is this true when Heroku restarts the dyno?
+            // TODO: avoid firing multiple updates at once? Should really have an update queue per meeting
+            // TODO: should just really persist static meeting details (meeting code)
+            // and keep all other details in memory?
+            await Promise.all(Array.from(initialMeeting.members.keys()).map(
+                memberId => processUpdate(meetingCode, Updates.leave({memberId})),
+            ));
+
+            initialMeeting = await meetingRepository.get(meetingCode) ?? initialMeeting;
         }
-        const meetingWebSocketClients = webSocketClientsByMeetingCode.get(meetingCode)!!;
-        meetingWebSocketClients.add(ws);
+        const meetingConnections = connectionsByMeetingCode.get(meetingCode)!!;
+        const connection = {clientWebSocket: ws};
+        meetingConnections.add(connection);
 
         let ponged = true;
         ws.on("pong", () => ponged = true);
 
         const memberId = uuid.v4();
-
-        async function markConnectionActive() {
-            await connectionRepository.add({
-                meetingCode: initialMeeting.meetingCode,
-                memberId: memberId,
-                lastActive: Instant.now(),
-            });
-        }
-
-        await markConnectionActive()
 
         const intervalId = setInterval(() => {
             if (!ponged) {
@@ -151,7 +136,6 @@ export function createServer({port, connectionRepository, meetingRepository}: {
             } else {
                 ponged = false;
                 ws.ping();
-                markConnectionActive();
             }
         }, pingInterval.toMillis());
 
@@ -167,7 +151,7 @@ export function createServer({port, connectionRepository, meetingRepository}: {
         }
 
         ws.on("close", () => {
-            meetingWebSocketClients.delete(ws);
+            meetingConnections.delete(connection);
             clearInterval(intervalId);
             processUpdate(meetingCode, Updates.leave({memberId}));
         });
@@ -213,12 +197,10 @@ export function createServer({port, connectionRepository, meetingRepository}: {
 async function main() {
     const port = parseInt(process.env.PORT || "8000", 10);
 
-    const connectionRepository = await createConnectionRepository();
     const meetingRepository = await createMeetingRepositoryFromEnv();
 
     await createServer({
         port: port,
-        connectionRepository: connectionRepository,
         meetingRepository: meetingRepository,
     });
     console.log(`server started on port ${port}`);
