@@ -52,6 +52,38 @@ suite(__filename, function () {
                 ]);
             });
         });
+
+        suite("leave", function () {
+            test("when memberId is not in meeting then leaving does nothing", function () {
+                const meeting = createMeeting({members: OrderedMap()});
+
+                const result = applyUpdate(meeting, Updates.leave({memberId: "1"}));
+
+                assert.deepStrictEqual(result.members.entrySeq().toJSON(), []);
+            });
+
+            test("when memberId is in meeting then leaving removes member", function () {
+                const meeting = createMeeting({members: OrderedMap()});
+
+                let result = applyUpdate(meeting, Updates.join({memberId: "1", name: "Alice"}));
+                result = applyUpdate(result, Updates.join({memberId: "2", name: "Bob"}));
+                result = applyUpdate(result, Updates.leave({memberId: "1"}));
+
+                assert.deepStrictEqual(result.members.keySeq().toJSON(), ["2"]);
+            });
+
+            test("when memberId is in queue then leaving removes member", function () {
+                const meeting = createMeeting({members: OrderedMap(), queue: List()});
+
+                let result = applyUpdate(meeting, Updates.join({memberId: "1", name: "Alice"}));
+                result = applyUpdate(result, Updates.join({memberId: "2", name: "Bob"}));
+                result = applyUpdate(result, Updates.setHandSignal({memberId: "1", handSignal: "clarification"}));
+                result = applyUpdate(result, Updates.setHandSignal({memberId: "2", handSignal: "clarification"}));
+                result = applyUpdate(result, Updates.leave({memberId: "1"}));
+
+                assert.deepStrictEqual(result.queue!!.toJSON(), ["2"]);
+            });
+        });
     });
 });
 

@@ -159,6 +159,9 @@ export function applyUpdate(meeting: Meeting, update: Update): Meeting {
         return {
             ...meeting,
             members: meeting.members.delete(update.memberId),
+            queue: meeting.queue === null
+                ? null
+                : meeting.queue.filter(memberId => memberId !== update.memberId),
         };
     } else if (update.type === "v1/setName") {
         return Meetings.updateMemberByMemberId(meeting, update.memberId, member => ({
