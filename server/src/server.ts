@@ -31,6 +31,8 @@ export async function createServer({port, meetingStore}: {
 
     const connectedMemberIds = new Set<string>();
 
+    const meetingConnections = new Map<string, Set<WebSocket>>();
+
     const app = express();
     app.use(express.json());
     app.use(cors());
@@ -88,6 +90,14 @@ export async function createServer({port, meetingStore}: {
     }
 
     const initConnection = (ws: WebSocket, initialMeeting: Meeting) => {
+        const {meetingCode} = initialMeeting;
+
+        if (!meetingConnections.has(meetingCode)) {
+            meetingConnections.set(meetingCode, new Set());
+        }
+        const connections = meetingConnections.get(meetingCode)!!;
+        connections.add(ws);
+
         let ponged = true;
         ws.on("pong", () => ponged = true);
 
@@ -132,7 +142,7 @@ export async function createServer({port, meetingStore}: {
                     return applyUpdate(meeting, update);
                 },
             );
-            wss.clients.forEach((ws) => send(ws, update));
+            connections.forEach((ws) => send(ws, update));
         }
 
         ws.on("close", () => {

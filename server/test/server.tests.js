@@ -66,7 +66,7 @@ suite(__filename, function() {
         assert.deepStrictEqual(join, {type: "v1/join", memberId: initial.memberId, name: "Bob"});
     }));
 
-    test("when event is sent to server then server sends processed event to all clients", withServer(async (server) => {
+    test("when event is sent to server then server sends processed event to all clients in meeting", withServer(async (server) => {
         const {data: {meetingCode}} = await server.postOk("/api/meetings");
 
         const webSocket1 = server.ws(`/api/meetings/${meetingCode}`);
@@ -82,6 +82,24 @@ suite(__filename, function() {
 
         assert.deepStrictEqual(message1, {type: "v1/setName", memberId: memberId1, name: "Robert"});
         assert.deepStrictEqual(message2, {type: "v1/setName", memberId: memberId1, name: "Robert"});
+    }));
+
+    test("messages are bounded by meeting", withServer(async (server) => {
+        const {data: {meetingCode: meetingCode1}} = await server.postOk("/api/meetings");
+        const {data: {meetingCode: meetingCode2}} = await server.postOk("/api/meetings");
+
+        const webSocket1 = server.ws(`/api/meetings/${meetingCode1}`);
+        const {memberId: memberId1} = await webSocket1.waitForMessage("v1/initial");
+
+        const webSocket2 = server.ws(`/api/meetings/${meetingCode2}`);
+        const {memberId: memberId2} = await webSocket2.waitForMessage("v1/initial");
+
+        webSocket1.send(ClientMessages.join("Bob"));
+        await webSocket1.waitForMessage("v1/join");
+        webSocket2.send(ClientMessages.join("Alice"));
+        const message = await webSocket2.waitForMessage("v1/join");
+
+        assert.deepStrictEqual(message, {type: "v1/join", memberId: memberId2, name: "Alice"});
     }));
 
     test("joining client receives current state of meeting", withServer(async (server) => {
