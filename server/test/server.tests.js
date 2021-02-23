@@ -6,6 +6,7 @@ const WebSocket = require("ws");
 
 const {ClientMessages} = require("../lib/meetings");
 const {createServer} = require("../lib/server");
+const store = require("../lib/store");
 
 const TEST_PORT = 8001;
 
@@ -198,7 +199,10 @@ function wrapWebSocket(ws) {
 
 function withServer(func) {
     return async () => {
-        const server = await createServer({port: TEST_PORT});
+        const server = await createServer({
+            meetingStore: store.inMemory(),
+            port: TEST_PORT,
+        });
         const webSockets = [];
 
         try {

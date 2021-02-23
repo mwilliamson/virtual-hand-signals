@@ -19,9 +19,13 @@ import {
     Update,
 } from "./meetings";
 import { createMeetingRepository } from "./meetingRepositories";
+import * as store from "./store";
 
-export async function createServer({port}: {port: number}) {
-    const meetings = await createMeetingRepository();
+export async function createServer({port, meetingStore}: {
+    port: number,
+    meetingStore: store.Store<string, Meeting>,
+}) {
+    const meetings = await createMeetingRepository({meetingStore});
 
     const app = express();
     app.use(express.json());
@@ -156,7 +160,7 @@ export async function createServer({port}: {port: number}) {
 
 async function main() {
     const port = parseInt(process.env.PORT || "8000", 10);
-    await createServer({port: port});
+    await createServer({port: port, meetingStore: store.inMemory()});
     console.log(`server started on port ${port}`);
 }
 

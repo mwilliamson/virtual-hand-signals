@@ -10,11 +10,12 @@ interface MeetingRepository {
     update: (meetingCode: string, f: (meeting: Meeting | undefined) => Meeting) => Promise<void>;
 }
 
-export async function createMeetingRepository(): Promise<MeetingRepository> {
-    const meetings = store.inMemory<string, Meeting>();
+export async function createMeetingRepository({meetingStore}: {
+    meetingStore: store.Store<string, Meeting>,
+}): Promise<MeetingRepository> {
     return newMeetingRepository({
         generateMeetingCode: generateMeetingCode,
-        meetings: meetings,
+        meetings: meetingStore,
     });
 }
 
