@@ -6,7 +6,7 @@ import {
  } from "@chakra-ui/react";
 import { useState } from "react";
 
-import { Meeting } from "../../server/lib/meetings";
+import { MeetingDetails } from "../../server/lib/meetings";
 import * as api from "./api";
 import { meetingNotFoundTitle, meetingNotFoundDescription, useErrorReporter } from "./errors";
 import * as localStorage from "./localStorage";
@@ -34,7 +34,7 @@ function JoinMeetingForm() {
 
         const trimmedMeetingCode = meetingCode.trim();
 
-        let meeting: Meeting | null;
+        let meeting: MeetingDetails | null;
         try {
             meeting = await api.fetchMeetingByMeetingCode(trimmedMeetingCode);
         } catch (error) {

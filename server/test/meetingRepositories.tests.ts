@@ -1,11 +1,10 @@
 import assert from "assert";
 
-import { List, OrderedMap } from "immutable";
 import * as td from "testdouble";
 
 import * as store from "../lib/store";
 import * as meetingRepositories from "../lib/meetingRepositories";
-import { Meeting } from "../lib/meetings";
+import { MeetingDetails } from "../lib/meetings";
 
 suite(__filename, function () {
     test("when store does not have meeting with code then get() returns undefined", async function() {
@@ -73,9 +72,9 @@ suite(__filename, function () {
     test("update() retries until successful set() on store", async function() {
         const meetingStore = fakeStore();
         td.when(meetingStore.get("<meeting code>")).thenResolve(
-            {value: createMeeting({meetingCode: "<meeting code>"}), version: 1},
-            {value: createMeeting({meetingCode: "<meeting code>"}), version: 2},
-            {value: createMeeting({meetingCode: "<meeting code>"}), version: 3},
+            {value: createMeeting({meetingCode: "<meeting code>", hasQueue: false}), version: 1},
+            {value: createMeeting({meetingCode: "<meeting code>", hasQueue: false}), version: 2},
+            {value: createMeeting({meetingCode: "<meeting code>", hasQueue: false}), version: 3},
         );
         td.when(meetingStore.set("<meeting code>", 1, td.matchers.anything()))
             .thenResolve(store.SetResult.Stale);
@@ -90,13 +89,13 @@ suite(__filename, function () {
 
         await meetingRepository.update(
             "<meeting code>",
-            meeting => ({...meeting!!, queue: meeting!!.queue!!.push("updated")}),
+            meeting => ({...meeting!!, hasQueue: true}),
         );
 
         td.verify(meetingStore.set(
             "<meeting code>",
             3,
-            td.matchers.argThat((meeting: Meeting) => meeting.queue!!.includes("updated")),
+            td.matchers.contains({hasQueue: true}),
         ));
     });
 });
@@ -105,12 +104,11 @@ function fakeStore() {
     return td.object<meetingRepositories.MeetingStore>();
 }
 
-function createMeeting(meeting: Partial<Meeting> = {}) {
-    const fullMeeting: Meeting = {
+function createMeeting(meeting: Partial<MeetingDetails> = {}) {
+    const fullMeeting: MeetingDetails = {
         meetingCode: "<meeting code>",
-        members: OrderedMap(),
-        queue: List(),
+        hasQueue: false,
         ...meeting,
     };
-    return Meeting.encode(fullMeeting);
+    return MeetingDetails.encode(fullMeeting);
 }

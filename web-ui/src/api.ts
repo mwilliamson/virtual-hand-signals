@@ -2,14 +2,14 @@ import { isLeft, Left } from "fp-ts/Either";
 import * as t from "io-ts";
 import { PathReporter } from "io-ts/PathReporter";
 
-import { ClientMessage, ClientMessages, Meeting, ServerMessage, Update } from "server/lib/meetings";
+import { ClientMessage, ClientMessages, Meeting, MeetingDetails, ServerMessage, Update } from "server/lib/meetings";
 
-export async function fetchMeetingByMeetingCode(meetingCode: string): Promise<Meeting | null> {
+export async function fetchMeetingByMeetingCode(meetingCode: string): Promise<MeetingDetails | null> {
     const url = buildHttpUrl(`/api/meetings/${meetingCode}`);
     const response = await fetch(url);
     if (response.status === 200) {
         const json = await response.json();
-        return decodeMeetingJson(json);
+        return decodeMeetingDetailsJson(json);
     } else if (response.status === 404) {
         return null;
     } else {
@@ -82,13 +82,13 @@ export function joinMeeting({meetingCode, onFatal, onError, onNotFound, onInit, 
     };
 }
 
-export async function startMeeting({hasQueue}: {hasQueue: boolean}): Promise<Meeting> {
+export async function startMeeting({hasQueue}: {hasQueue: boolean}): Promise<MeetingDetails> {
     const json = await postJson<Meeting>("/api/meetings", {hasQueue: hasQueue});
-    return decodeMeetingJson(json);
+    return decodeMeetingDetailsJson(json);
 }
 
-function decodeMeetingJson(json: unknown): Meeting {
-    const result = Meeting.decode(json);
+function decodeMeetingDetailsJson(json: unknown): MeetingDetails {
+    const result = MeetingDetails.decode(json);
     if (isLeft(result)) {
         throw decodeResultToError(result);
     } else {

@@ -16,12 +16,18 @@ import {
     ClientMessage,
     clientMessageToUpdate,
     Meeting,
+    MeetingDetails,
+    Meetings,
     ServerMessage,
     ServerMessages,
     Update,
     Updates,
 } from "./meetings";
-import { createMeetingRepository, MeetingRepository, MeetingStore } from "./meetingRepositories";
+import {
+    createMeetingRepository,
+    MeetingRepository,
+    MeetingStore,
+ } from "./meetingRepositories";
 import * as store from "./store";
 
 export function createServer({port, meetingRepository}: {
@@ -35,6 +41,7 @@ export function createServer({port, meetingRepository}: {
     }
 
     const connectionsByMeetingCode = new Map<string, Set<Connection>>();
+    const meetingsByMeetingCode = new Map<string, Meeting>();
 
     const app = express();
     app.use(express.json());
@@ -55,7 +62,7 @@ export function createServer({port, meetingRepository}: {
             } else {
                 const {hasQueue = false} = bodyResult.right ?? {};
                 const meeting = await meetingRepository.createMeeting({hasQueue: hasQueue});
-                response.send(Meeting.encode(meeting));
+                response.send(MeetingDetails.encode(meeting));
             }
         } catch (error) {
             next(error);
@@ -69,7 +76,7 @@ export function createServer({port, meetingRepository}: {
             if (meeting === undefined) {
                 response.status(404).send();
             } else {
-                response.send(Meeting.encode(meeting));
+                response.send(MeetingDetails.encode(meeting));
             }
         } catch (error) {
             next(error);
@@ -92,35 +99,25 @@ export function createServer({port, meetingRepository}: {
     }
 
     async function processUpdate(meetingCode: string, update: Update): Promise<void> {
-        await meetingRepository.update(
-            meetingCode,
-            // TODO: Handle undefined meeting
-            maybeMeeting => {
-                const meeting = maybeMeeting!!;
-                return applyUpdate(meeting, update);
-            },
-        );
+        const meeting = meetingsByMeetingCode.get(meetingCode);
+        // TODO: Handle undefined meeting
+        if (meeting !== undefined) {
+            meetingsByMeetingCode.set(meetingCode, applyUpdate(meeting, update));
+        }
         const meetingConnections = connectionsByMeetingCode.get(meetingCode) ?? new Set();
         meetingConnections.forEach(connection => send(connection.clientWebSocket, update));
     }
 
-    const initConnection = async (ws: WebSocket, initialMeeting: Meeting) => {
-        const {meetingCode} = initialMeeting;
+    const initConnection = async (ws: WebSocket, meetingDetails: MeetingDetails) => {
+        const {meetingCode} = meetingDetails;
 
         if (!connectionsByMeetingCode.has(meetingCode)) {
             connectionsByMeetingCode.set(meetingCode, new Set());
-
-            // This relies on the assumption that there's only ever one server running
-            // TODO: is this true when Heroku restarts the dyno?
-            // TODO: avoid firing multiple updates at once? Should really have an update queue per meeting
-            // TODO: should just really persist static meeting details (meeting code)
-            // and keep all other details in memory?
-            await Promise.all(Array.from(initialMeeting.members.keys()).map(
-                memberId => processUpdate(meetingCode, Updates.leave({memberId})),
-            ));
-
-            initialMeeting = await meetingRepository.get(meetingCode) ?? initialMeeting;
         }
+        if (!meetingsByMeetingCode.has(meetingCode)) {
+            meetingsByMeetingCode.set(meetingCode, Meetings.create(meetingDetails));
+        }
+
         const meetingConnections = connectionsByMeetingCode.get(meetingCode)!!;
         const connection = {clientWebSocket: ws};
         meetingConnections.add(connection);
@@ -139,6 +136,7 @@ export function createServer({port, meetingRepository}: {
             }
         }, pingInterval.toMillis());
 
+        const initialMeeting = meetingsByMeetingCode.get(meetingCode)!!;
         send(ws, ServerMessages.initial({meeting: initialMeeting, memberId}));
 
         async function processMessage(message: ClientMessage): Promise<void> {
@@ -164,13 +162,13 @@ export function createServer({port, meetingRepository}: {
 
     wss.on("connection", async function connection(ws, request) {
         const meetingCode = (request as any).meetingCode as string;
-        const initialMeeting: Meeting | null = await meetingRepository.get(meetingCode) ?? null;
+        const meetingDetails = await meetingRepository.get(meetingCode) ?? null;
 
-        if (initialMeeting === null) {
+        if (meetingDetails === null) {
             send(ws, ServerMessages.notFound);
             ws.close();
         } else {
-            initConnection(ws, initialMeeting);
+            initConnection(ws, meetingDetails);
         }
     });
 

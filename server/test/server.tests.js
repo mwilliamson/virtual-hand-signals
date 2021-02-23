@@ -4,6 +4,7 @@ const util = require("util");
 const axios = require("axios");
 const WebSocket = require("ws");
 
+const {createMeetingRepository} = require("../lib/meetingRepositories");
 const {ClientMessages} = require("../lib/meetings");
 const {createServer} = require("../lib/server");
 const store = require("../lib/store");
@@ -32,8 +33,7 @@ suite(__filename, function() {
         const response = await server.get(`/api/meetings/${meetingCode}`);
 
         assert.strictEqual(response.status, 200);
-        assert.deepStrictEqual(response.data.meetingCode, meetingCode);
-        assert.deepStrictEqual(response.data.members, []);
+        assert.strictEqual(response.data.meetingCode, meetingCode);
     }));
 
     test("meeting has no queue by default", withServer(async (server) => {
@@ -42,7 +42,7 @@ suite(__filename, function() {
         const response = await server.get(`/api/meetings/${meetingCode}`);
 
         assert.strictEqual(response.status, 200);
-        assert.strictEqual(response.data.queue, null);
+        assert.strictEqual(response.data.hasQueue, false);
     }));
 
     test("meeting can be created with queue", withServer(async (server) => {
@@ -51,7 +51,7 @@ suite(__filename, function() {
         const response = await server.get(`/api/meetings/${meetingCode}`);
 
         assert.strictEqual(response.status, 200);
-        assert.deepStrictEqual(response.data.queue, []);
+        assert.strictEqual(response.data.hasQueue, true);
     }));
 
     test("POSTing to /api/meetings creates meeting that can be joined", withServer(async (server) => {
@@ -218,7 +218,9 @@ function wrapWebSocket(ws) {
 function withServer(func) {
     return async () => {
         const server = await createServer({
-            meetingStore: store.inMemory(),
+            meetingRepository: await createMeetingRepository({
+                meetingStore: await store.inMemory(),
+            }),
             port: TEST_PORT,
         });
         const webSockets = [];

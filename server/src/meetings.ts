@@ -33,7 +33,28 @@ export const Meeting = t.strict({
     ]),
 });
 
-const Meetings = {
+export interface MeetingSettings {
+    hasQueue: boolean;
+}
+
+export interface MeetingDetails extends MeetingSettings {
+    meetingCode: string;
+}
+
+export const MeetingDetails = t.strict({
+    hasQueue: t.boolean,
+    meetingCode: t.string,
+});
+
+export const Meetings = {
+    create: (details: MeetingDetails): Meeting => {
+        return {
+            meetingCode: details.meetingCode,
+            members: OrderedMap(),
+            queue: details.hasQueue ? List() : null,
+        };
+    },
+
     updateMemberByMemberId(meeting: Meeting, memberId: string, update: (member: Member) => Member): Meeting {
         const member = meeting.members.get(memberId);
         if (member === undefined) {

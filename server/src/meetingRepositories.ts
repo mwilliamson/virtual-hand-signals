@@ -1,15 +1,14 @@
 import cryptoRandomString from "crypto-random-string";
 import { isLeft } from "fp-ts/Either";
-import { List, OrderedMap } from "immutable";
 import * as t from "io-ts";
 
-import { Meeting } from "./meetings";
+import { MeetingDetails, MeetingSettings } from "./meetings";
 import * as store from "./store";
 
 export interface MeetingRepository {
-    createMeeting: (options: {hasQueue: boolean}) => Promise<Meeting>;
-    get: (meetingCode: string) => Promise<Meeting | undefined>;
-    update: (meetingCode: string, f: (meeting: Meeting | undefined) => Meeting) => Promise<void>;
+    createMeeting: (settings: MeetingSettings) => Promise<MeetingDetails>;
+    get: (meetingCode: string) => Promise<MeetingDetails | undefined>;
+    update: (meetingCode: string, f: (meeting: MeetingDetails | undefined) => MeetingDetails) => Promise<void>;
 }
 
 export async function createMeetingRepository({meetingStore}: {
@@ -21,40 +20,33 @@ export async function createMeetingRepository({meetingStore}: {
     });
 }
 
-export type MeetingStore = store.Store<string, t.OutputOf<typeof Meeting>>;
+export type MeetingStore = store.Store<string, MeetingDetails>;
 
 export function newMeetingRepository({generateMeetingCode, meetings}: {
     generateMeetingCode: () => string,
     meetings: MeetingStore,
 }) {
-    async function createMeeting({hasQueue}: {hasQueue: boolean}): Promise<Meeting> {
+    async function createMeeting(settings: MeetingSettings): Promise<MeetingDetails> {
         while (true) {
             const meetingCode = generateMeetingCode();
-            const getResult = await meetings.get(meetingCode);
-            if (getResult.value === undefined) {
-                const meeting: Meeting = {
-                    meetingCode: meetingCode,
-                    members: OrderedMap(),
-                    queue: hasQueue ? List() : null,
-                };
-                const saveResult = await save(null, meeting);
-                if (saveResult === store.SetResult.Success) {
-                    return meeting;
-                }
+            const details = {...settings, meetingCode: meetingCode};
+            const saveResult = await save(null, details);
+            if (saveResult === store.SetResult.Success) {
+                return details;
             }
         }
     }
 
-    async function get(meetingCode: string): Promise<Meeting | undefined> {
+    async function get(meetingCode: string): Promise<MeetingDetails | undefined> {
         const getResult = await meetings.get(meetingCode);
         return decodeStoreValue(getResult.value);
     }
 
-    function decodeStoreValue(value: undefined | t.OutputOf<typeof Meeting>): Meeting | undefined {
+    function decodeStoreValue(value: undefined | t.OutputOf<typeof MeetingDetails>): MeetingDetails | undefined {
         if (value === undefined) {
             return undefined;
         } else {
-            const decodeResult = Meeting.decode(value);
+            const decodeResult = MeetingDetails.decode(value);
             if (isLeft(decodeResult)) {
                 throw new Error("could not decode value from store");
             } else {
@@ -63,7 +55,10 @@ export function newMeetingRepository({generateMeetingCode, meetings}: {
         }
     }
 
-    async function update(meetingCode: string, f: (meeting: Meeting | undefined) => Meeting): Promise<void> {
+    async function update(
+        meetingCode: string,
+        f: (meetingDetails: MeetingDetails | undefined) => MeetingDetails,
+    ): Promise<void> {
         while (true) {
             const getResult = await meetings.get(meetingCode);
             const newMeeting = f(decodeStoreValue(getResult.value));
@@ -74,11 +69,11 @@ export function newMeetingRepository({generateMeetingCode, meetings}: {
         }
     }
 
-    async function save(previousVersion: number | null, meeting: Meeting): Promise<store.SetResult> {
+    async function save(previousVersion: number | null, meetingDetails: MeetingDetails): Promise<store.SetResult> {
         return await meetings.set(
-            meeting.meetingCode,
+            meetingDetails.meetingCode,
             previousVersion,
-            Meeting.encode(meeting),
+            MeetingDetails.encode(meetingDetails),
         );
     }
 
