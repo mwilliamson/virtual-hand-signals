@@ -207,7 +207,12 @@ async function main() {
 async function createMeetingRepositoryFromEnv() {
     const meetingStore: MeetingStore = process.env.DATABASE_URL
         ? await store.postgres({
-            pool: new pg.Pool({connectionString: process.env.DATABASE_URL}),
+            pool: new pg.Pool({
+                connectionString: process.env.DATABASE_URL,
+                ssl: {
+                    rejectUnauthorized: false
+                },
+            }),
             tableName: "meetings",
         })
         : await store.inMemory()
