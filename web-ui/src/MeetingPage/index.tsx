@@ -179,6 +179,15 @@ function MeetingPageJoined(props: MeetingPageJoinedProps) {
         window.history.replaceState(null, "");
     }, []);
 
+    useEffect(() => {
+        const intervalId = setInterval(
+            () => api.keepAlive(meeting.meetingCode),
+            60 * 1000,
+        );
+
+        return () => clearInterval(intervalId);
+    }, []);
+
     function handleChangeName(newName: string) {
         send(ClientMessages.setName(newName));
         setChangeName(false);

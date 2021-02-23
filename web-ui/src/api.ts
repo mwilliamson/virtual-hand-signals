@@ -4,6 +4,10 @@ import { PathReporter } from "io-ts/PathReporter";
 
 import { ClientMessage, ClientMessages, Meeting, MeetingDetails, ServerMessage, Update } from "server/lib/meetings";
 
+export async function keepAlive(meetingCode: string): Promise<void> {
+    await fetchMeetingByMeetingCode(meetingCode);
+}
+
 export async function fetchMeetingByMeetingCode(meetingCode: string): Promise<MeetingDetails | null> {
     const url = buildHttpUrl(`/api/meetings/${meetingCode}`);
     const response = await fetch(url);
