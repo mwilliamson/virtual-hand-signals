@@ -6,10 +6,12 @@ import cors from "cors";
 import express from "express";
 import { isLeft } from "fp-ts/Either";
 import * as t from "io-ts";
+import { Duration, Instant } from "@js-joda/core";
 import * as pg from "pg";
 import * as uuid from "uuid";
 import WebSocket from "ws";
 
+import { ConnectionRepository, createConnectionRepository } from "./connections";
 import {
     applyUpdate,
     ClientMessage,
@@ -20,18 +22,36 @@ import {
     Update,
     Updates,
 } from "./meetings";
-import { createMeetingRepository, MeetingStore } from "./meetingRepositories";
+import { createMeetingRepository, MeetingRepository, MeetingStore } from "./meetingRepositories";
 import * as store from "./store";
 
-export async function createServer({port, meetingStore}: {
+export function createServer({port, connectionRepository, meetingRepository}: {
     port: number,
-    meetingStore: MeetingStore,
+    connectionRepository: ConnectionRepository,
+    meetingRepository: MeetingRepository,
 }) {
-    const meetings = await createMeetingRepository({meetingStore});
+    // Inactivity is detected by pings, so we should make sure the ping
+    // interval is considerably less than the inactivityInterval
+    const inactivityInterval = Duration.ofSeconds(20);
+    const pingInterval = Duration.ofSeconds(10);
 
-    const connectedMemberIds = new Set<string>();
+    function startConnectionReaper() {
+        async function reap() {
+            const inactiveConnections = await connectionRepository.fetchInactive(inactivityInterval);
+            for (const connection of inactiveConnections) {
+                processUpdate(
+                    connection.meetingCode,
+                    Updates.leave({memberId: connection.memberId}),
+                );
+            }
+        }
 
-    const meetingConnections = new Map<string, Set<WebSocket>>();
+        setInterval(reap, inactivityInterval.toMillis());
+    }
+
+    startConnectionReaper();
+
+    const webSocketClientsByMeetingCode = new Map<string, Set<WebSocket>>();
 
     const app = express();
     app.use(express.json());
@@ -51,7 +71,7 @@ export async function createServer({port, meetingStore}: {
                 response.status(400).send();
             } else {
                 const {hasQueue = false} = bodyResult.right ?? {};
-                const meeting = await meetings.createMeeting({hasQueue: hasQueue});
+                const meeting = await meetingRepository.createMeeting({hasQueue: hasQueue});
                 response.send(Meeting.encode(meeting));
             }
         } catch (error) {
@@ -62,7 +82,7 @@ export async function createServer({port, meetingStore}: {
     app.get("/api/meetings/:meetingCode", async (request, response, next) => {
         try {
             const {meetingCode} = request.params;
-            const meeting = await meetings.get(meetingCode);
+            const meeting = await meetingRepository.get(meetingCode);
             if (meeting === undefined) {
                 response.status(404).send();
             } else {
@@ -72,7 +92,6 @@ export async function createServer({port, meetingStore}: {
             next(error);
         }
     });
-
 
     const staticPath = path.join(__dirname, "../../web-ui/build");
     app.use(express.static(staticPath))
@@ -89,20 +108,42 @@ export async function createServer({port, meetingStore}: {
         client.send(JSON.stringify(ServerMessages.toJson(message)));
     }
 
-    const initConnection = (ws: WebSocket, initialMeeting: Meeting) => {
+    async function processUpdate(meetingCode: string, update: Update): Promise<void> {
+        await meetingRepository.update(
+            meetingCode,
+            // TODO: Handle undefined meeting
+            maybeMeeting => {
+                const meeting = maybeMeeting!!;
+                return applyUpdate(meeting, update);
+            },
+        );
+        const meetingWebSocketClients = webSocketClientsByMeetingCode.get(meetingCode) ?? new Set();
+        meetingWebSocketClients.forEach((ws) => send(ws, update));
+    }
+
+    const initConnection = async (ws: WebSocket, initialMeeting: Meeting) => {
         const {meetingCode} = initialMeeting;
 
-        if (!meetingConnections.has(meetingCode)) {
-            meetingConnections.set(meetingCode, new Set());
+        if (!webSocketClientsByMeetingCode.has(meetingCode)) {
+            webSocketClientsByMeetingCode.set(meetingCode, new Set());
         }
-        const connections = meetingConnections.get(meetingCode)!!;
-        connections.add(ws);
+        const meetingWebSocketClients = webSocketClientsByMeetingCode.get(meetingCode)!!;
+        meetingWebSocketClients.add(ws);
 
         let ponged = true;
         ws.on("pong", () => ponged = true);
 
         const memberId = uuid.v4();
-        connectedMemberIds.add(memberId);
+
+        async function markConnectionActive() {
+            await connectionRepository.add({
+                meetingCode: initialMeeting.meetingCode,
+                memberId: memberId,
+                lastActive: Instant.now(),
+            });
+        }
+
+        await markConnectionActive()
 
         const intervalId = setInterval(() => {
             if (!ponged) {
@@ -110,8 +151,9 @@ export async function createServer({port, meetingStore}: {
             } else {
                 ponged = false;
                 ws.ping();
+                markConnectionActive();
             }
-        }, 10000);
+        }, pingInterval.toMillis());
 
         send(ws, ServerMessages.initial({meeting: initialMeeting, memberId}));
 
@@ -120,35 +162,14 @@ export async function createServer({port, meetingStore}: {
             if (update === null) {
                 send(ws, ServerMessages.invalid(message));
             } else {
-                // TODO: This cleans up disconnected clients, but only works when using a single server
-                const meeting = await meetings.get(initialMeeting.meetingCode);
-                if (meeting !== undefined) {
-                    for (const memberId of meeting.members.keySeq()) {
-                        if (!connectedMemberIds.has(memberId)) {
-                            await processUpdate(Updates.leave({memberId}));
-                        }
-                    }
-                }
-                await processUpdate(update);
+                await processUpdate(meetingCode, update);
             }
         }
 
-        async function processUpdate(update: Update): Promise<void> {
-            await meetings.update(
-                initialMeeting.meetingCode,
-                // TODO: Handle undefined meeting
-                maybeMeeting => {
-                    const meeting = maybeMeeting!!;
-                    return applyUpdate(meeting, update);
-                },
-            );
-            connections.forEach((ws) => send(ws, update));
-        }
-
         ws.on("close", () => {
+            meetingWebSocketClients.delete(ws);
             clearInterval(intervalId);
-            processUpdate(Updates.leave({memberId}));
-            connectedMemberIds.delete(memberId);
+            processUpdate(meetingCode, Updates.leave({memberId}));
         });
 
         ws.on("message", function incoming(messageBuffer) {
@@ -159,7 +180,7 @@ export async function createServer({port, meetingStore}: {
 
     wss.on("connection", async function connection(ws, request) {
         const meetingCode = (request as any).meetingCode as string;
-        const initialMeeting: Meeting | null = await meetings.get(meetingCode) ?? null;
+        const initialMeeting: Meeting | null = await meetingRepository.get(meetingCode) ?? null;
 
         if (initialMeeting === null) {
             send(ws, ServerMessages.notFound);
@@ -192,6 +213,18 @@ export async function createServer({port, meetingStore}: {
 async function main() {
     const port = parseInt(process.env.PORT || "8000", 10);
 
+    const connectionRepository = await createConnectionRepository();
+    const meetingRepository = await createMeetingRepositoryFromEnv();
+
+    await createServer({
+        port: port,
+        connectionRepository: connectionRepository,
+        meetingRepository: meetingRepository,
+    });
+    console.log(`server started on port ${port}`);
+}
+
+async function createMeetingRepositoryFromEnv() {
     const meetingStore: MeetingStore = process.env.DATABASE_URL
         ? await store.postgres({
             pool: new pg.Pool({connectionString: process.env.DATABASE_URL}),
@@ -199,9 +232,7 @@ async function main() {
         })
         : await store.inMemory()
 
-
-    await createServer({port: port, meetingStore: meetingStore});
-    console.log(`server started on port ${port}`);
+    return await createMeetingRepository({meetingStore});
 }
 
 if (require.main === module) {

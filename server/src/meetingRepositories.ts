@@ -6,7 +6,7 @@ import * as t from "io-ts";
 import { Meeting } from "./meetings";
 import * as store from "./store";
 
-interface MeetingRepository {
+export interface MeetingRepository {
     createMeeting: (options: {hasQueue: boolean}) => Promise<Meeting>;
     get: (meetingCode: string) => Promise<Meeting | undefined>;
     update: (meetingCode: string, f: (meeting: Meeting | undefined) => Meeting) => Promise<void>;
