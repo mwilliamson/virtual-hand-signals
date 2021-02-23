@@ -43,11 +43,11 @@ export function joinMeeting({meetingCode, onFatal, onError, onNotFound, onInit, 
             onError(decodeResultToError(decodeResult));
         } else {
             const message = decodeResult.right;
-            if (message.type === "initial") {
+            if (message.type === "v1/initial") {
                 onInit(message);
-            } else if (message.type === "invalid") {
+            } else if (message.type === "v1/invalid") {
                 onError(new Error(`sent invalid message: ${JSON.stringify(message.message)}`));
-            } else if (message.type === "notFound") {
+            } else if (message.type === "v1/notFound") {
                 open = false;
                 onNotFound();
             } else {

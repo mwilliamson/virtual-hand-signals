@@ -54,28 +54,28 @@ export const handSignals = [
 ];
 
 export type Update =
-    | {type: "join", memberId: string, name: string}
-    | {type: "leave", memberId: string}
-    | {type: "setName", memberId: string, name: string}
-    | {type: "setHandSignal", memberId: string, handSignal: string | null};
+    | {type: "v1/join", memberId: string, name: string}
+    | {type: "v1/leave", memberId: string}
+    | {type: "v1/setName", memberId: string, name: string}
+    | {type: "v1/setHandSignal", memberId: string, handSignal: string | null};
 
 export const Update = t.union([
     t.strict({
-        type: t.literal("join"),
+        type: t.literal("v1/join"),
         memberId: t.string,
         name: t.string,
     }),
     t.strict({
-        type: t.literal("leave"),
+        type: t.literal("v1/leave"),
         memberId: t.string,
     }),
     t.strict({
-        type: t.literal("setName"),
+        type: t.literal("v1/setName"),
         memberId: t.string,
         name: t.string,
     }),
     t.strict({
-        type: t.literal("setHandSignal"),
+        type: t.literal("v1/setHandSignal"),
         memberId: t.string,
         handSignal: t.union([t.string, t.null]),
     }),
@@ -83,39 +83,39 @@ export const Update = t.union([
 
 export type ServerMessage =
     | Update
-    | {type: "initial", memberId: string, meeting: Meeting}
-    | {type: "invalid", message: unknown}
-    | {type: "notFound"};
+    | {type: "v1/initial", memberId: string, meeting: Meeting}
+    | {type: "v1/invalid", message: unknown}
+    | {type: "v1/notFound"};
 
 export const ServerMessage = t.union([
     Update,
     t.strict({
-        type: t.literal("initial"),
+        type: t.literal("v1/initial"),
         memberId: t.string,
         meeting: Meeting,
     }),
     t.strict({
-        type: t.literal("invalid"),
+        type: t.literal("v1/invalid"),
         message: t.unknown,
     }),
     t.strict({
-        type: t.literal("notFound"),
+        type: t.literal("v1/notFound"),
     }),
 ]);
 
 export const Updates = {
-    notFound: {type: "notFound" as "notFound"},
+    notFound: {type: "v1/notFound" as "v1/notFound"},
 
     join({memberId, name}: {memberId: string, name: string}): Update {
-        return {type: "join", memberId: memberId, name: name}
+        return {type: "v1/join", memberId: memberId, name: name}
     },
 
     leave({memberId}: {memberId: string}): Update {
-        return {type: "leave", memberId: memberId};
+        return {type: "v1/leave", memberId: memberId};
     },
 
     setHandSignal({memberId, handSignal}: {memberId: string, handSignal: string}): Update {
-        return {type: "setHandSignal", memberId: memberId, handSignal: handSignal};
+        return {type: "v1/setHandSignal", memberId: memberId, handSignal: handSignal};
     },
 };
 
@@ -128,19 +128,19 @@ export const ServerMessages = {
 
     initial({meeting, memberId}: {meeting: Meeting, memberId: string}): ServerMessage {
         return {
-            type: "initial",
+            type: "v1/initial",
             meeting: meeting,
             memberId: memberId,
         };
     },
 
     invalid(message: unknown): ServerMessage {
-        return {type: "invalid", message: message};
+        return {type: "v1/invalid", message: message};
     },
 }
 
 export function applyUpdate(meeting: Meeting, update: Update): Meeting {
-    if (update.type === "join") {
+    if (update.type === "v1/join") {
         if (meeting.members.has(update.memberId)) {
             return Meetings.updateMemberByMemberId(meeting, update.memberId, member => ({
                 ...member,
@@ -155,17 +155,17 @@ export function applyUpdate(meeting: Meeting, update: Update): Meeting {
                 ),
             };
         }
-    } else if (update.type === "leave") {
+    } else if (update.type === "v1/leave") {
         return {
             ...meeting,
             members: meeting.members.delete(update.memberId),
         };
-    } else if (update.type === "setName") {
+    } else if (update.type === "v1/setName") {
         return Meetings.updateMemberByMemberId(meeting, update.memberId, member => ({
             ...member,
             name: update.name,
         }));
-    } else if (update.type === "setHandSignal") {
+    } else if (update.type === "v1/setHandSignal") {
         meeting = Meetings.updateMemberByMemberId(meeting, update.memberId, member => ({
             ...member,
             handSignal: update.handSignal,
@@ -192,21 +192,21 @@ export function applyUpdate(meeting: Meeting, update: Update): Meeting {
 }
 
 export type ClientMessage =
-    | {type: "join", name: string}
-    | {type: "setName", name: string}
-    | {type: "setHandSignal", handSignal: string | null};
+    | {type: "v1/join", name: string}
+    | {type: "v1/setName", name: string}
+    | {type: "v1/setHandSignal", handSignal: string | null};
 
 const ClientMessage = t.union([
     t.strict({
-        type: t.literal("join"),
+        type: t.literal("v1/join"),
         name: t.string,
     }),
     t.strict({
-        type: t.literal("setName"),
+        type: t.literal("v1/setName"),
         name: t.string,
     }),
     t.strict({
-        type: t.literal("setHandSignal"),
+        type: t.literal("v1/setHandSignal"),
         handSignal: t.union([t.string, t.null]),
     }),
 ]);
@@ -217,15 +217,15 @@ export const ClientMessages = {
     },
 
     join(name: string): ClientMessage {
-        return {type: "join", name: name};
+        return {type: "v1/join", name: name};
     },
 
     setName(name: string): ClientMessage {
-        return {type: "setName", name: name};
+        return {type: "v1/setName", name: name};
     },
 
     setHandSignal(handSignal: string | null): ClientMessage {
-        return {type: "setHandSignal", handSignal: handSignal};
+        return {type: "v1/setHandSignal", handSignal: handSignal};
     },
 };
 

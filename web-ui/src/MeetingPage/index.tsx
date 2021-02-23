@@ -52,7 +52,7 @@ export default function MeetingPage() {
             onInit: ({meeting, memberId}) => {
                 const send = (message: ClientMessage) => {
                     connection.send(message);
-                    if (message.type === "join" || message.type === "setName") {
+                    if (message.type === "v1/join" || message.type === "v1/setName") {
                         localStorage.setName(message.name);
                     }
                 };

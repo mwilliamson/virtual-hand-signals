@@ -4,6 +4,7 @@ const util = require("util");
 const axios = require("axios");
 const WebSocket = require("ws");
 
+const {ClientMessages} = require("../lib/meetings");
 const {createServer} = require("../lib/server");
 
 const TEST_PORT = 8001;
@@ -18,8 +19,8 @@ suite(__filename, function() {
     test("attempting to connect non-existent meeting causes connection to close with message", withServer(async (server) => {
         const webSocket = await server.ws("/api/meetings/abc-def-hij");
 
-        const message = await webSocket.waitForMessage("notFound");
-        assert.deepStrictEqual(message, {type: "notFound"});
+        const message = await webSocket.waitForMessage("v1/notFound");
+        assert.deepStrictEqual(message, {type: "v1/notFound"});
 
         await webSocket.waitForClose();
     }));
@@ -56,42 +57,42 @@ suite(__filename, function() {
         const {data: {meetingCode}} = await server.postOk("/api/meetings");
         const webSocket = server.ws(`/api/meetings/${meetingCode}`);
 
-        const initial = await webSocket.waitForMessage("initial");
-        webSocket.send({type: "join", name: "Bob"});
-        const join = await webSocket.waitForMessage("join");
+        const initial = await webSocket.waitForMessage("v1/initial");
+        webSocket.send(ClientMessages.join("Bob"));
+        const join = await webSocket.waitForMessage("v1/join");
 
         assert.strictEqual(initial.meeting.meetingCode, meetingCode);
-        assert.deepStrictEqual(join, {type: "join", memberId: initial.memberId, name: "Bob"});
+        assert.deepStrictEqual(join, {type: "v1/join", memberId: initial.memberId, name: "Bob"});
     }));
 
     test("when event is sent to server then server sends processed event to all clients", withServer(async (server) => {
         const {data: {meetingCode}} = await server.postOk("/api/meetings");
 
         const webSocket1 = server.ws(`/api/meetings/${meetingCode}`);
-        const {memberId: memberId1} = await webSocket1.waitForMessage("initial");
-        webSocket1.send({type: "join", name: "Bob"});
+        const {memberId: memberId1} = await webSocket1.waitForMessage("v1/initial");
+        webSocket1.send(ClientMessages.join("Bob"));
         const webSocket2 = server.ws(`/api/meetings/${meetingCode}`);
-        await webSocket2.waitForMessage("initial");
-        webSocket2.send({type: "join", name: "Alice"});
+        await webSocket2.waitForMessage("v1/initial");
+        webSocket2.send(ClientMessages.join("Alice"));
 
-        webSocket1.send({type: "setName", name: "Robert"});
-        const message1 = await webSocket1.waitForMessage("setName");
-        const message2 = await webSocket2.waitForMessage("setName");
+        webSocket1.send(ClientMessages.setName("Robert"));
+        const message1 = await webSocket1.waitForMessage("v1/setName");
+        const message2 = await webSocket2.waitForMessage("v1/setName");
 
-        assert.deepStrictEqual(message1, {type: "setName", memberId: memberId1, name: "Robert"});
-        assert.deepStrictEqual(message2, {type: "setName", memberId: memberId1, name: "Robert"});
+        assert.deepStrictEqual(message1, {type: "v1/setName", memberId: memberId1, name: "Robert"});
+        assert.deepStrictEqual(message2, {type: "v1/setName", memberId: memberId1, name: "Robert"});
     }));
 
     test("joining client receives current state of meeting", withServer(async (server) => {
         const {data: {meetingCode}} = await server.postOk("/api/meetings");
 
         const webSocket1 = server.ws(`/api/meetings/${meetingCode}`);
-        const {memberId: memberId1} = await webSocket1.waitForMessage("initial");
-        webSocket1.send({type: "join", name: "Bob"});
-        await webSocket1.waitForMessage("join");
+        const {memberId: memberId1} = await webSocket1.waitForMessage("v1/initial");
+        webSocket1.send(ClientMessages.join("Bob"));
+        await webSocket1.waitForMessage("v1/join");
 
         const webSocket2 = server.ws(`/api/meetings/${meetingCode}`);
-        const message2 = await webSocket2.waitForMessage("initial");
+        const message2 = await webSocket2.waitForMessage("v1/initial");
 
         assert.deepStrictEqual(
             message2.meeting.members,
@@ -105,11 +106,11 @@ suite(__filename, function() {
         const {data: {meetingCode}} = await server.postOk("/api/meetings");
 
         const webSocket1 = server.ws(`/api/meetings/${meetingCode}`);
-        await webSocket1.waitForMessage("initial");
-        webSocket1.send({type: "join", bob: "Bob"});
-        const message1 = await webSocket1.waitForMessage("invalid");
+        await webSocket1.waitForMessage("v1/initial");
+        webSocket1.send({type: "v1/join", bob: "Bob"});
+        const message1 = await webSocket1.waitForMessage("v1/invalid");
 
-        assert.deepStrictEqual(message1, {type: "invalid", message: {type: "join", bob: "Bob"}});
+        assert.deepStrictEqual(message1, {type: "v1/invalid", message: {type: "v1/join", bob: "Bob"}});
     }));
 
     test("when message has extra properties then update strips extra properties", withServer(async (server) => {
@@ -118,11 +119,11 @@ suite(__filename, function() {
         const {data: {meetingCode}} = await server.postOk("/api/meetings");
 
         const webSocket1 = server.ws(`/api/meetings/${meetingCode}`);
-        const {memberId: memberId1} = await webSocket1.waitForMessage("initial");
-        webSocket1.send({type: "join", name: "Bob", x: 1});
-        const message1 = await webSocket1.waitForMessage("join");
+        const {memberId: memberId1} = await webSocket1.waitForMessage("v1/initial");
+        webSocket1.send({type: "v1/join", name: "Bob", x: 1});
+        const message1 = await webSocket1.waitForMessage("v1/join");
 
-        assert.deepStrictEqual(message1, {type: "join", memberId: memberId1, name: "Bob"});
+        assert.deepStrictEqual(message1, {type: "v1/join", memberId: memberId1, name: "Bob"});
     }));
 });
 
@@ -150,7 +151,9 @@ function wrapWebSocket(ws) {
         return new Promise((resolve, reject) => {
             handleWait(predicate, resolve, reject);
 
-            setTimeout(() => reject(new Error(`timed out waiting for ${description}`)), 500);
+            setTimeout(() => reject(new Error(
+                `timed out waiting for ${description}\nhad events: ${JSON.stringify(events)}`,
+            )), 500);
         });
     }
 
