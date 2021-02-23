@@ -188,7 +188,7 @@ function MeetingPageJoined(props: MeetingPageJoinedProps) {
         <MeetingPageContainer
             meetingCode={meeting.meetingCode}
             settingsMenuItems={
-                <SettingsMenuItems onChangeName={() => setChangeName(true)} />
+                <SettingsMenuItems onChangeName={() => setChangeName(true)} send={send} />
             }
             stickyTop={
                 !changeName && (

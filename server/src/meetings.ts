@@ -196,6 +196,7 @@ export function applyUpdate(meeting: Meeting, update: Update): Meeting {
 
 export type ClientMessage =
     | {type: "v1/join", name: string}
+    | {type: "v1/leave"}
     | {type: "v1/setName", name: string}
     | {type: "v1/setHandSignal", handSignal: string | null};
 
@@ -203,6 +204,9 @@ const ClientMessage = t.union([
     t.strict({
         type: t.literal("v1/join"),
         name: t.string,
+    }),
+    t.strict({
+        type: t.literal("v1/leave"),
     }),
     t.strict({
         type: t.literal("v1/setName"),
@@ -221,6 +225,10 @@ export const ClientMessages = {
 
     join(name: string): ClientMessage {
         return {type: "v1/join", name: name};
+    },
+
+    leave(): ClientMessage {
+        return {type: "v1/leave"};
     },
 
     setName(name: string): ClientMessage {
