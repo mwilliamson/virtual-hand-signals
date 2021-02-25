@@ -34,9 +34,13 @@ export function joinMeeting({meetingCode, onConnectionError, onError, onNotFound
     let sessionId: string | null = null;
     let socket: WebSocket | null = null;
     let open = false;
+    let rejoining = false;
+    let onRejoinFailure = () => {};
 
     function setUpSocket() {
         socket = new WebSocket(url);
+        open = false;
+        rejoining = false;
 
         socket.onmessage = event => {
             let messageJson: unknown;
@@ -53,15 +57,24 @@ export function joinMeeting({meetingCode, onConnectionError, onError, onNotFound
             } else {
                 const message = decodeResult.right;
                 if (message.type === "v1/initial") {
-                    if (sessionId === null || sessionId === message.sessionId) {
+                    const init = () => {
                         sessionId = message.sessionId;
+                        rejoining = false;
                         onInit(message);
+                    };
+                    if (sessionId === null || sessionId === message.sessionId) {
+                        init();
                     } else {
-                        // TODO: handle session ID now being invalid
                         send(ClientMessages.rejoin({sessionId}));
+                        rejoining = true;
+                        onRejoinFailure = init;
                     }
                 } else if (message.type === "v1/invalid") {
-                    onError(new Error(`sent invalid message: ${JSON.stringify(message.message)}`));
+                    if (rejoining) {
+                        onRejoinFailure();
+                    } else {
+                        onError(new Error(`sent invalid message: ${JSON.stringify(message.message)}`));
+                    }
                 } else if (message.type === "v1/notFound") {
                     open = false;
                     onNotFound();
