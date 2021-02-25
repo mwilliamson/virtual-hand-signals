@@ -25,9 +25,7 @@ export function AppBar(props: AppBarProps) {
             py={2}
             marginBottom={2}
             fontWeight="bold"
-            position="sticky"
-            top={0}
-            zIndex={100}
+            zIndex={1000000}
         >
             <PageContentContainer>
                 <Flex>
