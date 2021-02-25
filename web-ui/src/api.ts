@@ -97,6 +97,7 @@ export function joinMeeting({meetingCode, onFatal, onError, onNotFound, onInit, 
     function reconnect() {
         // TODO: backoff
         // TODO: stop trying if user leaves the page
+        // TODO: display reconnection notice (rather than total error state)
         console.log("reconnect");
         setTimeout(() => setUpSocket(), 1000);
     }
