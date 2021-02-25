@@ -108,12 +108,13 @@ export function joinMeeting({meetingCode, onConnectionError, onError, onNotFound
 
     setUpSocket();
 
+    let reconnectTimeoutId: number | null;
+
     function reconnect() {
         // TODO: backoff
-        // TODO: stop trying if user leaves the page
         // TODO: display reconnection notice (rather than total error state)
         console.log("reconnect");
-        setTimeout(() => setUpSocket(), 1000);
+        reconnectTimeoutId = window.setTimeout(() => setUpSocket(), 1000);
     }
 
     function send(message: ClientMessage) {
@@ -129,6 +130,9 @@ export function joinMeeting({meetingCode, onConnectionError, onError, onNotFound
             open = false;
             if (socket !== null) {
                 socket.close();
+            }
+            if (reconnectTimeoutId !== null) {
+                clearTimeout(reconnectTimeoutId);
             }
         },
     };
