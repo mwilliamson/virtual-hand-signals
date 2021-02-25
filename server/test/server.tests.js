@@ -198,6 +198,31 @@ suite(__filename, function() {
             ]);
         });
     });
+
+    test("rejoining with invalid session ID causes invalid response", async () => {
+        const {meetingCode, originalMemberId, originalSessionId} = await useServer(async (server) => {
+            const {data: {meetingCode}} = await server.postOk("/api/meetings");
+            const webSocket = server.ws(`/api/meetings/${meetingCode}`);
+
+            const initial = await webSocket.waitForMessage("v1/initial");
+            webSocket.send(ClientMessages.join({name: "Bob"}));
+            const join = await webSocket.waitForMessage("v1/join");
+            webSocket.send(ClientMessages.setHandSignal("agree"));
+            await webSocket.waitForMessage("v1/setHandSignal")
+
+            return {meetingCode, originalMemberId: initial.memberId, originalSessionId: initial.sessionId};
+        });
+
+        await useServer(async (server) => {
+            const webSocket = server.ws(`/api/meetings/${meetingCode}`);
+
+            const initial1 = await webSocket.waitForMessage("v1/initial");
+            assert.notStrictEqual(initial1.memberId, originalMemberId);
+            assert.notStrictEqual(initial1.sessionId, originalSessionId);
+            webSocket.send(ClientMessages.rejoin({sessionId: originalSessionId + "a"}));
+            await webSocket.waitForMessage("v1/invalid");
+        });
+    });
 });
 
 async function postOk(url, data) {

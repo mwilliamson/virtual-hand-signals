@@ -150,11 +150,14 @@ export function createServer({port, databaseConnection}: {
             } else {
                 const message = decodeResult.right;
                 if (message.type === "v1/rejoin") {
-                    // TODO: handle missing session ID
                     const session = await databaseConnection.fetchSessionBySessionId(message.sessionId);
-                    memberId = session!!.memberId;
-                    sessionId = session!!.sessionId;
-                    sendInitial();
+                    if (session === undefined) {
+                        send(ws, ServerMessages.invalid(messageJson));
+                    } else {
+                        memberId = session.memberId;
+                        sessionId = session.sessionId;
+                        sendInitial();
+                    }
                 } else {
                     await processUpdate(meetingCode, clientUpdateToUpdate(memberId, message));
                 }
