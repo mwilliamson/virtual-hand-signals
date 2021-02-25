@@ -112,7 +112,6 @@ export function joinMeeting({meetingCode, onConnectionError, onError, onNotFound
 
     function reconnect() {
         // TODO: backoff
-        console.log("reconnect");
         reconnectTimeoutId = window.setTimeout(() => setUpSocket(), 1000);
     }
 
