@@ -30,58 +30,91 @@ export function joinMeeting({meetingCode, onFatal, onError, onNotFound, onInit, 
     onUpdate: (update: Update) => void,
 }) {
     const url = buildUrl(webSocketProtocol(), `/api/meetings/${meetingCode}`);
-    const socket = new WebSocket(url);
+
+    let sessionId: string | null = null;
+    let socket: WebSocket | null = null;
     let open = false;
 
-    socket.onmessage = event => {
-        let messageJson: unknown;
-        try {
-            messageJson = JSON.parse(event.data);
-        } catch (error) {
-            onError(error);
-            return;
-        }
+    function setUpSocket() {
+        socket = new WebSocket(url);
 
-        const decodeResult = ServerMessage.decode(messageJson);
-        if (isLeft(decodeResult)) {
-            onError(decodeResultToError(decodeResult));
-        } else {
-            const message = decodeResult.right;
-            if (message.type === "v1/initial") {
-                onInit(message);
-            } else if (message.type === "v1/invalid") {
-                onError(new Error(`sent invalid message: ${JSON.stringify(message.message)}`));
-            } else if (message.type === "v1/notFound") {
-                open = false;
-                onNotFound();
-            } else {
-                onUpdate(message);
+        socket.onmessage = event => {
+            let messageJson: unknown;
+            try {
+                messageJson = JSON.parse(event.data);
+            } catch (error) {
+                onError(error);
+                return;
             }
+
+            const decodeResult = ServerMessage.decode(messageJson);
+            if (isLeft(decodeResult)) {
+                onError(decodeResultToError(decodeResult));
+            } else {
+                const message = decodeResult.right;
+                if (message.type === "v1/initial") {
+                    if (sessionId === null || sessionId === message.sessionId) {
+                        sessionId = message.sessionId;
+                        onInit(message);
+                    } else {
+                        // TODO: handle session ID now being invalid
+                        send(ClientMessages.rejoin({sessionId}));
+                    }
+                } else if (message.type === "v1/invalid") {
+                    onError(new Error(`sent invalid message: ${JSON.stringify(message.message)}`));
+                } else if (message.type === "v1/notFound") {
+                    open = false;
+                    onNotFound();
+                } else {
+                    onUpdate(message);
+                }
+            }
+        };
+
+        socket.onerror = () => {
+            if (socket !== null) {
+                socket.close();
+            }
+            onFatal(new Error("failed to connect"));
+            reconnect();
+        };
+
+        socket.onopen = () => {
+            open = true;
+        };
+
+        socket.onclose = () => {
+            if (open) {
+                onFatal(new Error("WebSocket was closed"));
+                reconnect();
+                open = false;
+            }
+        };
+    }
+
+    setUpSocket();
+
+    function reconnect() {
+        // TODO: backoff
+        // TODO: stop trying if user leaves the page
+        console.log("reconnect");
+        setTimeout(() => setUpSocket(), 1000);
+    }
+
+    function send(message: ClientMessage) {
+        // TODO: store pending messages?
+        if (socket !== null) {
+            socket.send(JSON.stringify(ClientMessages.toJson(message)));
         }
-    };
-
-    socket.onerror = () => {
-        onFatal(new Error("failed to connect"));
-    };
-
-    socket.onopen = () => {
-        open = true;
-    };
-
-    socket.onclose = () => {
-        if (open) {
-            onFatal(new Error("WebSocket was closed"));
-            open = false;
-        }
-    };
+    }
 
     return {
-        send: (message: ClientMessage) => {
-            socket.send(JSON.stringify(ClientMessages.toJson(message)));
-        },
+        send: send,
         close: () => {
             open = false;
-            socket.close();
+            if (socket !== null) {
+                socket.close();
+            }
         },
     };
 }
