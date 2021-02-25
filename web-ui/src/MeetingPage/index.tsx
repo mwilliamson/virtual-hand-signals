@@ -138,7 +138,7 @@ function MeetingPageJoining(props: MeetingPageJoiningProps) {
     const {meeting, send} = props;
 
     const handleJoin = (name: string) => {
-        send(ClientMessages.join(name));
+        send(ClientMessages.join({name: name}));
     };
 
     const location = useLocation();

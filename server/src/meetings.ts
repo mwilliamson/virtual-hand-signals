@@ -1,5 +1,3 @@
-import { pipe } from "fp-ts/function";
-import { fold } from "fp-ts/Either";
 import { List, OrderedMap, updateIn } from "immutable";
 import * as t from "io-ts";
 
@@ -91,7 +89,7 @@ export const Update = t.union([
 
 export type ServerMessage =
     | Update
-    | {type: "v1/initial", memberId: string, meeting: Meeting}
+    | {type: "v1/initial", sessionId: string, memberId: string, meeting: Meeting}
     | {type: "v1/invalid", message: unknown}
     | {type: "v1/notFound"};
 
@@ -99,6 +97,7 @@ export const ServerMessage = t.union([
     Update,
     t.strict({
         type: t.literal("v1/initial"),
+        sessionId: t.string,
         memberId: t.string,
         meeting: Meeting,
     }),
@@ -115,7 +114,7 @@ export const Updates = {
     notFound: {type: "v1/notFound" as "v1/notFound"},
 
     join({memberId, name}: {memberId: string, name: string}): Update {
-        return {type: "v1/join", memberId: memberId, name: name}
+        return {type: "v1/join", memberId: memberId, name: name};
     },
 
     leave({memberId}: {memberId: string}): Update {
@@ -134,11 +133,12 @@ export const ServerMessages = {
         return ServerMessage.encode(message);
     },
 
-    initial({meeting, memberId}: {meeting: Meeting, memberId: string}): ServerMessage {
+    initial({meeting, memberId, sessionId}: {meeting: Meeting, memberId: string, sessionId: string}): ServerMessage {
         return {
             type: "v1/initial",
             meeting: meeting,
             memberId: memberId,
+            sessionId: sessionId,
         };
     },
 
@@ -202,13 +202,13 @@ export function applyUpdate(meeting: Meeting, update: Update): Meeting {
     }
 }
 
-export type ClientMessage =
+export type ClientUpdate =
     | {type: "v1/join", name: string}
     | {type: "v1/leave"}
     | {type: "v1/setName", name: string}
     | {type: "v1/setHandSignal", handSignal: string | null};
 
-const ClientMessage = t.union([
+const ClientUpdate = t.union([
     t.strict({
         type: t.literal("v1/join"),
         name: t.string,
@@ -226,13 +226,29 @@ const ClientMessage = t.union([
     }),
 ]);
 
+export type ClientMessage =
+    | ClientUpdate
+    | {type: "v1/rejoin", sessionId: string};
+
+export const ClientMessage = t.union([
+    ClientUpdate,
+    t.strict({
+        type: t.literal("v1/rejoin"),
+        sessionId: t.string,
+    }),
+]);
+
 export const ClientMessages = {
     toJson(message: ClientMessage) {
         return ClientMessage.encode(message);
     },
 
-    join(name: string): ClientMessage {
+    join({name}: {name: string}): ClientMessage {
         return {type: "v1/join", name: name};
+    },
+
+    rejoin({sessionId}: {sessionId: string}): ClientMessage {
+        return {type: "v1/rejoin", sessionId: sessionId};
     },
 
     leave(): ClientMessage {
@@ -248,9 +264,6 @@ export const ClientMessages = {
     },
 };
 
-export function clientMessageToUpdate(memberId: string, message: unknown): Update | null {
-    return pipe(ClientMessage.decode(message), fold(
-        () => null,
-        message => ({...message, memberId: memberId}),
-    ));
+export function clientUpdateToUpdate(memberId: string, update: ClientUpdate): Update {
+    return {...update, memberId: memberId};
 }

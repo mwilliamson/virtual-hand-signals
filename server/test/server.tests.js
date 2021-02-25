@@ -59,7 +59,7 @@ suite(__filename, function() {
         const webSocket = server.ws(`/api/meetings/${meetingCode}`);
 
         const initial = await webSocket.waitForMessage("v1/initial");
-        webSocket.send(ClientMessages.join("Bob"));
+        webSocket.send(ClientMessages.join({name: "Bob"}));
         const join = await webSocket.waitForMessage("v1/join");
 
         assert.strictEqual(initial.meeting.meetingCode, meetingCode);
@@ -71,10 +71,10 @@ suite(__filename, function() {
 
         const webSocket1 = server.ws(`/api/meetings/${meetingCode}`);
         const {memberId: memberId1} = await webSocket1.waitForMessage("v1/initial");
-        webSocket1.send(ClientMessages.join("Bob"));
+        webSocket1.send(ClientMessages.join({name: "Bob"}));
         const webSocket2 = server.ws(`/api/meetings/${meetingCode}`);
         await webSocket2.waitForMessage("v1/initial");
-        webSocket2.send(ClientMessages.join("Alice"));
+        webSocket2.send(ClientMessages.join({name: "Alice"}));
 
         webSocket1.send(ClientMessages.setName("Robert"));
         const message1 = await webSocket1.waitForMessage("v1/setName");
@@ -94,9 +94,9 @@ suite(__filename, function() {
         const webSocket2 = server.ws(`/api/meetings/${meetingCode2}`);
         const {memberId: memberId2} = await webSocket2.waitForMessage("v1/initial");
 
-        webSocket1.send(ClientMessages.join("Bob"));
+        webSocket1.send(ClientMessages.join({name: "Bob"}));
         await webSocket1.waitForMessage("v1/join");
-        webSocket2.send(ClientMessages.join("Alice"));
+        webSocket2.send(ClientMessages.join({name: "Alice"}));
         const message = await webSocket2.waitForMessage("v1/join");
 
         assert.deepStrictEqual(message, {type: "v1/join", memberId: memberId2, name: "Alice"});
@@ -107,7 +107,7 @@ suite(__filename, function() {
 
         const webSocket1 = server.ws(`/api/meetings/${meetingCode}`);
         const {memberId: memberId1} = await webSocket1.waitForMessage("v1/initial");
-        webSocket1.send(ClientMessages.join("Bob"));
+        webSocket1.send(ClientMessages.join({name: "Bob"}));
         await webSocket1.waitForMessage("v1/join");
 
         const webSocket2 = server.ws(`/api/meetings/${meetingCode}`);
@@ -144,6 +144,60 @@ suite(__filename, function() {
 
         assert.deepStrictEqual(message1, {type: "v1/join", memberId: memberId1, name: "Bob"});
     }));
+
+    test("meeting can be rejoined as same member", async () => {
+        const {meetingCode, originalMemberId, originalSessionId} = await useServer(async (server) => {
+            const {data: {meetingCode}} = await server.postOk("/api/meetings");
+            const webSocket = server.ws(`/api/meetings/${meetingCode}`);
+
+            const initial = await webSocket.waitForMessage("v1/initial");
+            webSocket.send(ClientMessages.join({name: "Bob"}));
+            const join = await webSocket.waitForMessage("v1/join");
+            webSocket.send(ClientMessages.setHandSignal("agree"));
+            await webSocket.waitForMessage("v1/setHandSignal")
+
+            return {meetingCode, originalMemberId: initial.memberId, originalSessionId: initial.sessionId};
+        });
+
+        await useServer(async (server) => {
+            const webSocket = server.ws(`/api/meetings/${meetingCode}`);
+
+            const initial1 = await webSocket.waitForMessage("v1/initial");
+            assert.notStrictEqual(initial1.memberId, originalMemberId);
+            assert.notStrictEqual(initial1.sessionId, originalSessionId);
+            webSocket.send(ClientMessages.rejoin({sessionId: originalSessionId}));
+            const initial2 = await webSocket.waitForMessage("v1/initial");
+            assert.strictEqual(initial2.memberId, originalMemberId);
+            assert.strictEqual(initial2.sessionId, originalSessionId);
+
+            const response1 = await server.get(`/api/meetings/${meetingCode}`);
+            assert.deepStrictEqual(response1.data.members, [
+                [
+                    originalMemberId,
+                    {
+                        handSignal: "agree",
+                        memberId: originalMemberId,
+                        name: "Bob",
+                    },
+                ],
+            ]);
+
+            webSocket.send(ClientMessages.setHandSignal("disagree"));
+            await webSocket.waitForMessage("v1/setHandSignal")
+
+            const response2 = await server.get(`/api/meetings/${meetingCode}`);
+            assert.deepStrictEqual(response2.data.members, [
+                [
+                    originalMemberId,
+                    {
+                        handSignal: "disagree",
+                        memberId: originalMemberId,
+                        name: "Bob",
+                    },
+                ],
+            ]);
+        });
+    });
 });
 
 async function postOk(url, data) {
@@ -216,31 +270,29 @@ function wrapWebSocket(ws) {
 }
 
 function withServer(func) {
-    return async () => {
-        const databaseConnection = await database.connect(process.env.TEST_DATABASE_URL);
-        const server = await createServer({
-            databaseConnection: databaseConnection,
-            port: TEST_PORT,
-        });
-        const webSockets = [];
+    return () => useServer(func);
+}
 
-        try {
-            await func({
-                get(url) {
-                    return axios.get(`http://localhost:${TEST_PORT}${url}`, {validateStatus: null});
-                },
+async function useServer(func) {
+    const testServer = await startTestServer();
 
-                async postOk(url, data) {
-                    return postOk(`http://localhost:${TEST_PORT}${url}`, data);
-                },
+    try {
+        return await func(testServer);
+    } finally {
+        testServer.close();
+    }
+}
 
-                ws(url) {
-                    const webSocket = new WebSocket(`ws://localhost:${TEST_PORT}${url}`);
-                    webSockets.push(webSocket);
-                    return wrapWebSocket(webSocket);
-                },
-            });
-        } finally {
+async function startTestServer() {
+    const databaseConnection = await database.connect(process.env.TEST_DATABASE_URL);
+    const server = await createServer({
+        databaseConnection: databaseConnection,
+        port: TEST_PORT,
+    });
+    const webSockets = [];
+
+    return {
+        close() {
             for (const webSocket of webSockets) {
                 try {
                     webSocket.close();
@@ -250,6 +302,20 @@ function withServer(func) {
             }
             server.close();
             databaseConnection.close();
-        }
+        },
+
+        get(url) {
+            return axios.get(`http://localhost:${TEST_PORT}${url}`, {validateStatus: null});
+        },
+
+        async postOk(url, data) {
+            return postOk(`http://localhost:${TEST_PORT}${url}`, data);
+        },
+
+        ws(url) {
+            const webSocket = new WebSocket(`ws://localhost:${TEST_PORT}${url}`);
+            webSockets.push(webSocket);
+            return wrapWebSocket(webSocket);
+        },
     };
 }

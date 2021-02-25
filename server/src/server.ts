@@ -14,7 +14,7 @@ import WebSocket from "ws";
 import {
     applyUpdate,
     ClientMessage,
-    clientMessageToUpdate,
+    clientUpdateToUpdate,
     Meeting,
     Meetings,
     ServerMessage,
@@ -28,6 +28,8 @@ export function createServer({port, databaseConnection}: {
     port: number,
     databaseConnection: database.Connection,
 }) {
+    // TODO: store last activity/ping for each session,
+    // reap sessions
     const pingInterval = Duration.ofSeconds(10);
 
     interface Connection {
@@ -113,17 +115,6 @@ export function createServer({port, databaseConnection}: {
 
         if (!connectionsByMeetingCode.has(meetingCode)) {
             connectionsByMeetingCode.set(meetingCode, new Set());
-
-            // This relies on the assumption that there's only ever one server running
-            // TODO: is this true when Heroku restarts the dyno?
-            // TODO: avoid firing multiple updates at once? Should really have an update queue per meeting
-            // TODO: should just really persist static meeting details (meeting code)
-            // and keep all other details in memory?
-            await Promise.all(Array.from(initialMeeting.members.keys()).map(
-                memberId => processUpdate(meetingCode, Updates.leave({memberId})),
-            ));
-
-            initialMeeting = await databaseConnection.fetchMeetingByMeetingCode(meetingCode) ?? initialMeeting;
         }
         const meetingConnections = connectionsByMeetingCode.get(meetingCode)!!;
         const connection = {clientWebSocket: ws};
@@ -132,7 +123,10 @@ export function createServer({port, databaseConnection}: {
         let ponged = true;
         ws.on("pong", () => ponged = true);
 
-        const memberId = uuid.v4();
+        let memberId = uuid.v4();
+        let sessionId = uuid.v4();
+
+        await databaseConnection.updateSession({memberId, sessionId});
 
         const intervalId = setInterval(() => {
             if (!ponged) {
@@ -143,14 +137,27 @@ export function createServer({port, databaseConnection}: {
             }
         }, pingInterval.toMillis());
 
-        send(ws, ServerMessages.initial({meeting: initialMeeting, memberId}));
+        const sendInitial = () => {
+            send(ws, ServerMessages.initial({meeting: initialMeeting, memberId, sessionId}));
+        };
 
-        async function processMessage(message: ClientMessage): Promise<void> {
-            const update = clientMessageToUpdate(memberId, message);
-            if (update === null) {
-                send(ws, ServerMessages.invalid(message));
+        sendInitial();
+
+        async function processMessageJson(messageJson: unknown): Promise<void> {
+            const decodeResult = ClientMessage.decode(messageJson);
+            if (isLeft(decodeResult)) {
+                send(ws, ServerMessages.invalid(messageJson));
             } else {
-                await processUpdate(meetingCode, update);
+                const message = decodeResult.right;
+                if (message.type === "v1/rejoin") {
+                    // TODO: handle missing session ID
+                    const session = await databaseConnection.fetchSessionBySessionId(message.sessionId);
+                    memberId = session!!.memberId;
+                    sessionId = session!!.sessionId;
+                    sendInitial();
+                } else {
+                    await processUpdate(meetingCode, clientUpdateToUpdate(memberId, message));
+                }
             }
         }
 
@@ -161,8 +168,8 @@ export function createServer({port, databaseConnection}: {
         });
 
         ws.on("message", function incoming(messageBuffer) {
-            const message = JSON.parse(messageBuffer.toString());
-            processMessage(message);
+            const messageJson = JSON.parse(messageBuffer.toString());
+            processMessageJson(messageJson);
         });
     }
 

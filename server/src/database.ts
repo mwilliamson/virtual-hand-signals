@@ -6,9 +6,18 @@ import { Meeting } from "./meetings";
 
 export interface Connection {
     close: () => Promise<void>;
+
     createMeeting: (meeting: Meeting) => Promise<boolean>;
     fetchMeetingByMeetingCode: (meetingCode: string) => Promise<Meeting | undefined>;
     updateMeetingByMeetingCode: (meetingCode: string, f: (meeting: Meeting) => Meeting) => Promise<Meeting | undefined>;
+
+    fetchSessionBySessionId: (sessionId: string) => Promise<Session | undefined>;
+    updateSession: ({memberId, sessionId}: {memberId: string, sessionId: string}) => Promise<void>;
+}
+
+interface Session {
+    memberId: string;
+    sessionId: string;
 }
 
 export async function connect(url: string): Promise<Connection> {
@@ -23,7 +32,15 @@ export async function connect(url: string): Promise<Connection> {
         `
             CREATE TABLE IF NOT EXISTS meetings (
                 meeting_code VARCHAR PRIMARY KEY,
-                value JSONB
+                value JSONB NOT NULL
+            );
+        `
+    );
+    await pool.query(
+        `
+            CREATE TABLE IF NOT EXISTS sessions (
+                session_id VARCHAR PRIMARY KEY,
+                member_id VARCHAR NOT NULL
             );
         `
     );
@@ -91,6 +108,29 @@ export async function connect(url: string): Promise<Connection> {
                     return newMeeting;
                 }
             });
+        },
+
+        // TODO: session fetch/update needs locking? (or other concurrency handling)
+
+        fetchSessionBySessionId: async (sessionId: string) => {
+            const {rows} = await pool.query(
+                `SELECT member_id, session_id FROM sessions WHERE session_id = $1`,
+                [sessionId],
+            );
+            return rows.length === 0 ? undefined : {
+                memberId: rows[0].member_id,
+                sessionId: rows[0].session_id,
+            };
+        },
+
+        updateSession: async ({memberId, sessionId}: {memberId: string, sessionId: string}) => {
+            await pool.query(
+                `
+                    INSERT INTO sessions (member_id, session_id)
+                    VALUES ($1, $2)
+                `,
+                [memberId, sessionId],
+            );
         },
 
         close: async () => {
