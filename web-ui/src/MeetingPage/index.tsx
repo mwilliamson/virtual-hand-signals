@@ -4,6 +4,7 @@ import {
     FormControl,
     FormLabel,
     Input,
+    useToast,
 } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
@@ -15,7 +16,6 @@ import {
     ErrorAlert,
     meetingNotFoundTitle,
     meetingNotFoundDescription,
-    UnexpectedErrorAlert,
     useErrorReporter,
 } from "../errors";
 import * as localStorage from "../localStorage";
@@ -28,7 +28,6 @@ import SettingsMenuItems from "./SettingsMenuItems";
 type State =
     | {type: "connecting"}
     | {type: "connected", meeting: Meeting, memberId: string, send: (message: ClientMessage) => void}
-    | {type: "error", error: Error}
     | {type: "meetingNotFound"};
 
 export default function MeetingPage() {
@@ -36,12 +35,25 @@ export default function MeetingPage() {
 
     const [state, setState] = useState<State>({type: "connecting"});
     const errorReporter = useErrorReporter();
+    const toast = useToast();
 
     useEffect(() => {
+        let connectionErrorToastId: string | number | undefined = undefined;
         const connection = api.joinMeeting({
             meetingCode: meetingCode,
             onConnectionError: error => {
-                setState({type: "error", error: error});
+                const toastArgs = {
+                    title: "Connection error",
+                    description: "Attempting to reconnect...",
+                    status: "error" as "error",
+                    isClosable: false,
+                    duration: null,
+                };
+                if (connectionErrorToastId === undefined) {
+                    connectionErrorToastId = toast(toastArgs);
+                } else {
+                    toast.update(connectionErrorToastId, toastArgs);
+                }
             },
             onError: error => {
                 errorReporter.unexpectedError({error: error});
@@ -50,6 +62,10 @@ export default function MeetingPage() {
                 setState({type: "meetingNotFound"});
             },
             onInit: ({meeting, memberId}) => {
+                if (connectionErrorToastId !== undefined) {
+                    toast.update(connectionErrorToastId, {duration: 0});
+                    connectionErrorToastId = undefined;
+                }
                 const send = (message: ClientMessage) => {
                     connection.send(message);
                     if (message.type === "v1/join" || message.type === "v1/setName") {
@@ -78,12 +94,6 @@ export default function MeetingPage() {
     if (state.type === "connecting") {
         return (
             <MeetingPageContainer meetingCode={meetingCode} />
-        );
-    } else if (state.type === "error") {
-        return (
-            <MeetingPageContainer meetingCode={meetingCode}>
-                <UnexpectedErrorAlert error={state.error} />
-            </MeetingPageContainer>
         );
     } else if (state.type === "meetingNotFound") {
         return (
