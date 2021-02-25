@@ -4,6 +4,7 @@ import {
     FormControl,
     FormLabel,
     Input,
+    MenuItem,
  } from "@chakra-ui/react";
 import { useState } from "react";
 
@@ -15,8 +16,15 @@ import { useNavigation } from "./navigation";
 import Page from "./Page";
 
 export default function StartMeetingPage() {
+    const navigation = useNavigation();
+
     return (
-        <Page title="Start meeting">
+        <Page
+            settingsMenuItems={
+                <MenuItem onClick={() => navigation.goToHomePage()}>Cancel</MenuItem>
+            }
+            title="Start meeting"
+        >
             <StartMeetingForm />
         </Page>
     );
