@@ -109,6 +109,12 @@ function decodeMeeting(value: t.OutputOf<typeof Meeting>): Meeting {
 }
 
 function meetingCodeToLockId(meetingCode: string): number {
-    // TODO: implement properly
-    return 42;
+    // Based on the hash code for Java strings
+    let hash = 0;
+    for (let index = 0; index < meetingCode.length; index++) {
+        hash = ((hash << 5) - hash) + meetingCode.charCodeAt(index);
+        // Coerce to 32-bit int
+        hash |= 0;
+    }
+    return hash;
 }
