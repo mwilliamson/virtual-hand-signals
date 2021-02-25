@@ -40,7 +40,7 @@ export default function MeetingPage() {
     useEffect(() => {
         const connection = api.joinMeeting({
             meetingCode: meetingCode,
-            onFatal: error => {
+            onConnectionError: error => {
                 setState({type: "error", error: error});
             },
             onError: error => {

@@ -21,9 +21,9 @@ export async function fetchMeetingByMeetingCode(meetingCode: string): Promise<Me
     }
 }
 
-export function joinMeeting({meetingCode, onFatal, onError, onNotFound, onInit, onUpdate}: {
+export function joinMeeting({meetingCode, onConnectionError, onError, onNotFound, onInit, onUpdate}: {
     meetingCode: string,
-    onFatal: (error: Error) => void,
+    onConnectionError: (error: Error) => void,
     onError: (error: Error) => void,
     onNotFound: () => void,
     onInit: (x: {meeting: Meeting, memberId: string}) => void,
@@ -75,7 +75,7 @@ export function joinMeeting({meetingCode, onFatal, onError, onNotFound, onInit, 
             if (socket !== null) {
                 socket.close();
             }
-            onFatal(new Error("failed to connect"));
+            onConnectionError(new Error("failed to connect"));
             reconnect();
         };
 
@@ -85,7 +85,7 @@ export function joinMeeting({meetingCode, onFatal, onError, onNotFound, onInit, 
 
         socket.onclose = () => {
             if (open) {
-                onFatal(new Error("WebSocket was closed"));
+                onConnectionError(new Error("WebSocket was closed"));
                 reconnect();
                 open = false;
             }
