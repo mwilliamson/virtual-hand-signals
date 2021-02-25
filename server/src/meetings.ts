@@ -33,7 +33,15 @@ export const Meeting = t.strict({
     ]),
 });
 
-const Meetings = {
+export const Meetings = {
+    create({meetingCode, hasQueue}: {meetingCode: string, hasQueue: boolean}): Meeting {
+        return {
+            meetingCode: meetingCode,
+            members: OrderedMap(),
+            queue: hasQueue ? List() : null,
+        };
+    },
+
     updateMemberByMemberId(meeting: Meeting, memberId: string, update: (member: Member) => Member): Meeting {
         const member = meeting.members.get(memberId);
         if (member === undefined) {

@@ -7,7 +7,6 @@ import cryptoRandomString from "crypto-random-string";
 import express from "express";
 import { isLeft } from "fp-ts/Either";
 import * as t from "io-ts";
-import { List, OrderedMap } from "immutable";
 import { Duration } from "@js-joda/core";
 import * as uuid from "uuid";
 import WebSocket from "ws";
@@ -17,6 +16,7 @@ import {
     ClientMessage,
     clientMessageToUpdate,
     Meeting,
+    Meetings,
     ServerMessage,
     ServerMessages,
     Update,
@@ -55,13 +55,9 @@ export function createServer({port, databaseConnection}: {
             } else {
                 while (true) {
                     const {hasQueue = false} = bodyResult.right ?? {};
-                    // TODO: extract meeting creation
+                    // TODO: extract meeting code creation
                     const meetingCode = generateMeetingCode();
-                    const meeting: Meeting = {
-                        meetingCode: meetingCode,
-                        members: OrderedMap(),
-                        queue: hasQueue ? List() : null,
-                    };
+                    const meeting = Meetings.create({meetingCode, hasQueue});
 
                     if (await databaseConnection.createMeeting(meeting)) {
                         response.send(Meeting.encode(meeting));
