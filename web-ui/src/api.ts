@@ -67,6 +67,7 @@ export function joinMeeting({meetingCode, onConnectionError, onError, onNotFound
                     } else {
                         send(ClientMessages.rejoin({sessionId}));
                         rejoining = true;
+                        // TODO: automatically reuse name?
                         onRejoinFailure = init;
                     }
                 } else if (message.type === "v1/invalid") {
