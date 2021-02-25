@@ -3,11 +3,12 @@ import * as path from "path";
 import * as url from "url";
 
 import cors from "cors";
+import cryptoRandomString from "crypto-random-string";
 import express from "express";
 import { isLeft } from "fp-ts/Either";
 import * as t from "io-ts";
+import { List, OrderedMap } from "immutable";
 import { Duration } from "@js-joda/core";
-import * as pg from "pg";
 import * as uuid from "uuid";
 import WebSocket from "ws";
 
@@ -21,12 +22,11 @@ import {
     Update,
     Updates,
 } from "./meetings";
-import { createMeetingRepository, MeetingRepository, MeetingStore } from "./meetingRepositories";
-import * as store from "./store";
+import * as database from "./database";
 
-export function createServer({port, meetingRepository}: {
+export function createServer({port, databaseConnection}: {
     port: number,
-    meetingRepository: MeetingRepository,
+    databaseConnection: database.Connection,
 }) {
     const pingInterval = Duration.ofSeconds(10);
 
@@ -53,9 +53,21 @@ export function createServer({port, meetingRepository}: {
             if (isLeft(bodyResult)) {
                 response.status(400).send();
             } else {
-                const {hasQueue = false} = bodyResult.right ?? {};
-                const meeting = await meetingRepository.createMeeting({hasQueue: hasQueue});
-                response.send(Meeting.encode(meeting));
+                while (true) {
+                    const {hasQueue = false} = bodyResult.right ?? {};
+                    // TODO: extract meeting creation
+                    const meetingCode = generateMeetingCode();
+                    const meeting: Meeting = {
+                        meetingCode: meetingCode,
+                        members: OrderedMap(),
+                        queue: hasQueue ? List() : null,
+                    };
+
+                    if (await databaseConnection.createMeeting(meeting)) {
+                        response.send(Meeting.encode(meeting));
+                        return;
+                    }
+                }
             }
         } catch (error) {
             next(error);
@@ -65,7 +77,7 @@ export function createServer({port, meetingRepository}: {
     app.get("/api/meetings/:meetingCode", async (request, response, next) => {
         try {
             const {meetingCode} = request.params;
-            const meeting = await meetingRepository.get(meetingCode);
+            const meeting = await databaseConnection.fetchMeetingByMeetingCode(meetingCode);
             if (meeting === undefined) {
                 response.status(404).send();
             } else {
@@ -92,13 +104,9 @@ export function createServer({port, meetingRepository}: {
     }
 
     async function processUpdate(meetingCode: string, update: Update): Promise<void> {
-        await meetingRepository.update(
+        await databaseConnection.updateMeetingByMeetingCode(
             meetingCode,
-            // TODO: Handle undefined meeting
-            maybeMeeting => {
-                const meeting = maybeMeeting!!;
-                return applyUpdate(meeting, update);
-            },
+            meeting => applyUpdate(meeting, update),
         );
         const meetingConnections = connectionsByMeetingCode.get(meetingCode) ?? new Set();
         meetingConnections.forEach(connection => send(connection.clientWebSocket, update));
@@ -119,7 +127,7 @@ export function createServer({port, meetingRepository}: {
                 memberId => processUpdate(meetingCode, Updates.leave({memberId})),
             ));
 
-            initialMeeting = await meetingRepository.get(meetingCode) ?? initialMeeting;
+            initialMeeting = await databaseConnection.fetchMeetingByMeetingCode(meetingCode) ?? initialMeeting;
         }
         const meetingConnections = connectionsByMeetingCode.get(meetingCode)!!;
         const connection = {clientWebSocket: ws};
@@ -164,7 +172,8 @@ export function createServer({port, meetingRepository}: {
 
     wss.on("connection", async function connection(ws, request) {
         const meetingCode = (request as any).meetingCode as string;
-        const initialMeeting: Meeting | null = await meetingRepository.get(meetingCode) ?? null;
+        const initialMeeting: Meeting | null =
+            await databaseConnection.fetchMeetingByMeetingCode(meetingCode) ?? null;
 
         if (initialMeeting === null) {
             send(ws, ServerMessages.notFound);
@@ -194,32 +203,30 @@ export function createServer({port, meetingRepository}: {
     return server;
 }
 
+function generateMeetingCode() {
+    const part = () => cryptoRandomString({length: 3, characters: "abcdefghijklmopqrstuvwxyz"});
+
+    return `${part()}-${part()}-${part()}`;
+}
+
 async function main() {
     const port = parseInt(process.env.PORT || "8000", 10);
 
-    const meetingRepository = await createMeetingRepositoryFromEnv();
+    const databaseConnection = await connectToDatabaseFromEnv();
 
     await createServer({
         port: port,
-        meetingRepository: meetingRepository,
+        databaseConnection: databaseConnection,
     });
     console.log(`server started on port ${port}`);
 }
 
-async function createMeetingRepositoryFromEnv() {
-    const meetingStore: MeetingStore = process.env.DATABASE_URL
-        ? await store.postgres({
-            pool: new pg.Pool({
-                connectionString: process.env.DATABASE_URL,
-                ssl: {
-                    rejectUnauthorized: false
-                },
-            }),
-            tableName: "meetings",
-        })
-        : await store.inMemory()
-
-    return await createMeetingRepository({meetingStore});
+async function connectToDatabaseFromEnv() {
+    const url = process.env.DATABASE_URL;
+    if (!url) {
+        throw Error("DATABASE_URL must be set");
+    }
+    return await database.connect(url);
 }
 
 if (require.main === module) {

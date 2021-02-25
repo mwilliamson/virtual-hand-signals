@@ -4,9 +4,9 @@ const util = require("util");
 const axios = require("axios");
 const WebSocket = require("ws");
 
+const database = require("../lib/database");
 const {ClientMessages} = require("../lib/meetings");
 const {createServer} = require("../lib/server");
-const store = require("../lib/store");
 
 const TEST_PORT = 8001;
 
@@ -217,8 +217,9 @@ function wrapWebSocket(ws) {
 
 function withServer(func) {
     return async () => {
+        const databaseConnection = await database.connect(process.env.TEST_DATABASE_URL);
         const server = await createServer({
-            meetingStore: store.inMemory(),
+            databaseConnection: databaseConnection,
             port: TEST_PORT,
         });
         const webSockets = [];
@@ -248,6 +249,7 @@ function withServer(func) {
                 }
             }
             server.close();
+            databaseConnection.close();
         }
     };
 }
