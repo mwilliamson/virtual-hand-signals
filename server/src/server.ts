@@ -218,8 +218,7 @@ export function createServer({port, databaseConnection}: {
         }
     });
 
-    // TODO: clearInterval on server close
-    setInterval(() => {
+    const reapSessionsIntervalId = setInterval(() => {
         const minLastAlive = Instant.now().minus(sessionExpiration);
 
         databaseConnection.withTransaction(async (client) => {
@@ -235,6 +234,10 @@ export function createServer({port, databaseConnection}: {
             }
         });
     }, reapInterval.toMillis());
+
+    server.on("close", () => {
+        clearInterval(reapSessionsIntervalId);
+    });
 
     server.listen(port);
 
