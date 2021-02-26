@@ -102,25 +102,12 @@ export async function connect(url: string): Promise<Connection> {
         reapExpiredSessions: async ({sessionExpiration, sendToMeetingClients}) => {
             const minLastAlive = Instant.now().minus(sessionExpiration);
 
-            interface SessionRow {
-                meeting_code: string;
-                member_id: string;
-            }
-
             await withTransaction(async (client) => {
-                const {rows} = await client.query(
-                    `
-                        DELETE FROM sessions
-                        WHERE last_alive < $1
-                        RETURNING meeting_code, member_id
-                    `,
-                    [minLastAlive],
-                );
-
+                const rows = await client.deleteExpiredSessions(minLastAlive);
                 for (const row of rows) {
                     // TODO: should this logic be in here? Not really about database interaction
                     // Pull out transaction abstraction?
-                    const {meeting_code: meetingCode, member_id: memberId} = row as SessionRow;
+                    const {meetingCode, memberId} = row;
                     const meetingClient = await client.acquireMeetingLock(meetingCode);
                     const update = Updates.leave({memberId});
                     await meetingClient.updateMeeting(
@@ -151,13 +138,18 @@ export async function connect(url: string): Promise<Connection> {
 
 interface TransactionClient {
     acquireMeetingLock: (meetingCode: string) => Promise<MeetingTransactionClient>;
-    query: (query: string, args: Array<unknown>) => Promise<pg.QueryResult>;
+    deleteExpiredSessions: (minLastAlive: Instant) => Promise<Array<DeletedSession>>;
 }
 
 interface MeetingTransactionClient {
     createMeeting: (meeting: Meeting) => Promise<boolean>;
     fetchMeeting: () => Promise<Meeting | undefined>;
     updateMeeting: (f: (meeting: Meeting) => Meeting) => Promise<Meeting | undefined>;
+}
+
+interface DeletedSession {
+    meetingCode: string;
+    memberId: string;
 }
 
 function createTransactionClient(client: pg.PoolClient): TransactionClient {
@@ -168,7 +160,26 @@ function createTransactionClient(client: pg.PoolClient): TransactionClient {
             return createMeetingTransactionClient(client, meetingCode);
         },
 
-        query: (query, args) => client.query(query, args),
+        async deleteExpiredSessions(minLastAlive: Instant) {
+            interface Row {
+                meeting_code: string;
+                member_id: string;
+            }
+
+            const {rows} = await client.query<Row>(
+                `
+                    DELETE FROM sessions
+                    WHERE last_alive < $1
+                    RETURNING meeting_code, member_id
+                `,
+                [minLastAlive],
+            );
+
+            return rows.map(row => ({
+                meetingCode: row.meeting_code,
+                memberId: row.member_id,
+            }));
+        },
     };
 }
 
