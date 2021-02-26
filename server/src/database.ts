@@ -45,12 +45,11 @@ export async function connect(url: string): Promise<Connection> {
         `
     );
 
-    const withMeetingLock = async <T>(meetingCode: string, f: (client: pg.PoolClient) => Promise<T>): Promise<T> => {
+    const withTransaction = async <T>(f: (client: pg.PoolClient) => Promise<T>): Promise<T> => {
         const client = await pool.connect();
         try {
             await client.query("BEGIN");
             try {
-                await client.query("SELECT pg_advisory_xact_lock($1)", [meetingCodeToLockId(meetingCode)]);
                 const result = f(client);
                 await client.query("COMMIT");
                 return result;
@@ -61,7 +60,13 @@ export async function connect(url: string): Promise<Connection> {
         } finally {
             client.release();
         }
+    };
 
+    const withMeetingLock = async <T>(meetingCode: string, f: (client: pg.PoolClient) => Promise<T>): Promise<T> => {
+        return await withTransaction(async (client) => {
+            await client.query("SELECT pg_advisory_xact_lock($1)", [meetingCodeToLockId(meetingCode)]);
+            return f(client);
+        });
     };
 
     const fetchMeetingOrUndefined = async (client: pg.PoolClient, meetingCode: string): Promise<Meeting | undefined> => {
