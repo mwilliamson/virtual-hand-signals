@@ -1,5 +1,6 @@
 import { isLeft } from "fp-ts/Either";
 import * as t from "io-ts";
+import { Instant } from "@js-joda/core";
 import * as pg from "pg";
 
 import { Meeting } from "./meetings";
@@ -12,7 +13,7 @@ export interface Connection {
     updateMeetingByMeetingCode: (meetingCode: string, f: (meeting: Meeting) => Meeting) => Promise<Meeting | undefined>;
 
     fetchSessionBySessionId: (sessionId: string) => Promise<Session | undefined>;
-    updateSession: ({memberId, sessionId}: {memberId: string, sessionId: string}) => Promise<void>;
+    updateSession: (args: {meetingCode: string, memberId: string, sessionId: string}) => Promise<void>;
 }
 
 interface Session {
@@ -34,14 +35,13 @@ export async function connect(url: string): Promise<Connection> {
                 meeting_code VARCHAR PRIMARY KEY,
                 value JSONB NOT NULL
             );
-        `
-    );
-    await pool.query(
-        `
             CREATE TABLE IF NOT EXISTS sessions (
                 session_id VARCHAR PRIMARY KEY,
-                member_id VARCHAR NOT NULL
+                meeting_code VARCHAR NOT NULL,
+                member_id VARCHAR NOT NULL,
+                last_alive TIMESTAMPTZ NOT NULL
             );
+            CREATE INDEX IF NOT EXISTS index_name ON sessions (last_alive);
         `
     );
 
@@ -123,13 +123,13 @@ export async function connect(url: string): Promise<Connection> {
             };
         },
 
-        updateSession: async ({memberId, sessionId}: {memberId: string, sessionId: string}) => {
+        updateSession: async ({meetingCode, memberId, sessionId}: {meetingCode: string, memberId: string, sessionId: string}) => {
             await pool.query(
                 `
-                    INSERT INTO sessions (member_id, session_id)
-                    VALUES ($1, $2)
+                    INSERT INTO sessions (meeting_code, member_id, session_id, last_alive)
+                    VALUES ($1, $2, $3, $4)
                 `,
-                [memberId, sessionId],
+                [meetingCode, memberId, sessionId, Instant.now().toString()],
             );
         },
 

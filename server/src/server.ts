@@ -126,7 +126,7 @@ export function createServer({port, databaseConnection}: {
         let memberId = uuid.v4();
         let sessionId = uuid.v4();
 
-        await databaseConnection.updateSession({memberId, sessionId});
+        await databaseConnection.updateSession({meetingCode, memberId, sessionId});
 
         const intervalId = setInterval(() => {
             if (!ponged) {
