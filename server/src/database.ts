@@ -1,9 +1,9 @@
 import { isLeft } from "fp-ts/Either";
 import * as t from "io-ts";
-import { Instant } from "@js-joda/core";
+import { Duration, Instant } from "@js-joda/core";
 import * as pg from "pg";
 
-import { Meeting } from "./meetings";
+import { applyUpdate, Meeting, ServerMessage, Updates } from "./meetings";
 
 export interface Connection {
     close: () => Promise<void>;
@@ -13,6 +13,10 @@ export interface Connection {
     updateMeetingByMeetingCode: (meetingCode: string, f: (meeting: Meeting) => Meeting) => Promise<Meeting | undefined>;
 
     fetchSessionBySessionId: (sessionId: string) => Promise<Session | undefined>;
+    reapExpiredSessions: (args: {
+        sessionExpiration: Duration,
+        sendToMeetingClients: (meetingCode: string, message: ServerMessage) => void,
+    }) => Promise<void>;
     updateSession: (args: {meetingCode: string, memberId: string, sessionId: string}) => Promise<void>;
 }
 
@@ -62,9 +66,13 @@ export async function connect(url: string): Promise<Connection> {
         }
     };
 
+    const acquireMeetingLock = async (client: pg.PoolClient, meetingCode: string) => {
+        await client.query("SELECT pg_advisory_xact_lock($1)", [meetingCodeToLockId(meetingCode)]);
+    };
+
     const withMeetingLock = async <T>(meetingCode: string, f: (client: pg.PoolClient) => Promise<T>): Promise<T> => {
         return await withTransaction(async (client) => {
-            await client.query("SELECT pg_advisory_xact_lock($1)", [meetingCodeToLockId(meetingCode)]);
+            await  acquireMeetingLock(client, meetingCode);
             return f(client);
         });
     };
@@ -75,6 +83,24 @@ export async function connect(url: string): Promise<Connection> {
             [meetingCode],
         );
         return rows.length === 0 ? undefined : decodeMeeting(rows[0].value);
+    };
+
+    const updateMeetingByMeetingCodeNoLock = async (
+        client: pg.PoolClient,
+        meetingCode: string,
+        f: (meeting: Meeting) => Meeting,
+    ): Promise<Meeting | undefined> => {
+        const meeting = await fetchMeetingOrUndefined(client, meetingCode);
+        if (meeting === undefined) {
+            return undefined;
+        } else {
+            const newMeeting = f(meeting);
+            await client.query(
+                "UPDATE meetings SET value = $2 WHERE meeting_code = $1",
+                [meetingCode, Meeting.encode(newMeeting)],
+            );
+            return newMeeting;
+        }
     };
 
     return {
@@ -101,17 +127,7 @@ export async function connect(url: string): Promise<Connection> {
 
         updateMeetingByMeetingCode: async (meetingCode: string, f: (meeting: Meeting) => Meeting) => {
             return withMeetingLock(meetingCode, async (client) => {
-                const meeting = await fetchMeetingOrUndefined(client, meetingCode);
-                if (meeting === undefined) {
-                    return undefined;
-                } else {
-                    const newMeeting = f(meeting);
-                    await client.query(
-                        "UPDATE meetings SET value = $2 WHERE meeting_code = $1",
-                        [meetingCode, Meeting.encode(newMeeting)],
-                    );
-                    return newMeeting;
-                }
+                return updateMeetingByMeetingCodeNoLock(client, meetingCode, f);
             });
         },
 
@@ -126,6 +142,40 @@ export async function connect(url: string): Promise<Connection> {
                 memberId: rows[0].member_id,
                 sessionId: rows[0].session_id,
             };
+        },
+
+        reapExpiredSessions: async ({sessionExpiration, sendToMeetingClients}) => {
+            const minLastAlive = Instant.now().minus(sessionExpiration);
+
+            interface SessionRow {
+                meeting_code: string;
+                member_id: string;
+            }
+
+            await withTransaction(async (client) => {
+                const {rows} = await pool.query(
+                    `
+                        DELETE FROM sessions
+                        WHERE last_alive < $1
+                        RETURNING meeting_code, member_id
+                    `,
+                    [minLastAlive],
+                );
+
+                for (const row of rows) {
+                    // TODO: should this logic be in here? Not really about database interaction
+                    // Pull out transaction abstraction?
+                    const {meeting_code: meetingCode, member_id: memberId} = row as SessionRow;
+                    await acquireMeetingLock(client, meetingCode);
+                    const update = Updates.leave({memberId});
+                    await updateMeetingByMeetingCodeNoLock(
+                        client,
+                        meetingCode,
+                        meeting => applyUpdate(meeting, update),
+                    );
+                    sendToMeetingClients(meetingCode, update);
+                }
+            });
         },
 
         updateSession: async ({meetingCode, memberId, sessionId}: {meetingCode: string, memberId: string, sessionId: string}) => {

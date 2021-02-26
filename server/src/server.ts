@@ -28,9 +28,11 @@ export function createServer({port, databaseConnection}: {
     port: number,
     databaseConnection: database.Connection,
 }) {
-    // TODO: store last activity/ping for each session,
-    // reap sessions
+    // session expiration should be significantly longer than ping interval,
+    // otherwise all sessions will expire
     const pingInterval = Duration.ofSeconds(10);
+    const reapInterval = Duration.ofSeconds(19);
+    const sessionExpiration = Duration.ofSeconds(30);
 
     interface Connection {
         clientWebSocket: WebSocket;
@@ -215,6 +217,10 @@ export function createServer({port, databaseConnection}: {
             });
         }
     });
+
+    setInterval(() => {
+        databaseConnection.reapExpiredSessions({sessionExpiration, sendToMeetingClients});
+    }, reapInterval.toMillis());
 
     server.listen(port);
 
