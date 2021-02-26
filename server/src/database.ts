@@ -49,12 +49,12 @@ export async function connect(url: string): Promise<Connection> {
         `
     );
 
-    const withTransaction = async <T>(f: (client: pg.PoolClient) => Promise<T>): Promise<T> => {
+    const withTransaction = async <T>(f: (client: TransactionClient) => Promise<T>): Promise<T> => {
         const client = await pool.connect();
         try {
             await client.query("BEGIN");
             try {
-                const result = f(client);
+                const result = f(createTransactionClient(client));
                 await client.query("COMMIT");
                 return result;
             } catch (error) {
@@ -66,69 +66,24 @@ export async function connect(url: string): Promise<Connection> {
         }
     };
 
-    const acquireMeetingLock = async (client: pg.PoolClient, meetingCode: string) => {
-        await client.query("SELECT pg_advisory_xact_lock($1)", [meetingCodeToLockId(meetingCode)]);
-    };
-
-    const withMeetingLock = async <T>(meetingCode: string, f: (client: pg.PoolClient) => Promise<T>): Promise<T> => {
+    const withMeetingLock = async <T>(meetingCode: string, f: (client: MeetingTransactionClient) => Promise<T>): Promise<T> => {
         return await withTransaction(async (client) => {
-            await  acquireMeetingLock(client, meetingCode);
-            return f(client);
+            const meetingClient = await client.acquireMeetingLock(meetingCode);
+            return f(meetingClient);
         });
-    };
-
-    const fetchMeetingOrUndefined = async (client: pg.PoolClient, meetingCode: string): Promise<Meeting | undefined> => {
-        const {rows} = await client.query(
-            "SELECT value FROM meetings WHERE meeting_code = $1",
-            [meetingCode],
-        );
-        return rows.length === 0 ? undefined : decodeMeeting(rows[0].value);
-    };
-
-    const updateMeetingByMeetingCodeNoLock = async (
-        client: pg.PoolClient,
-        meetingCode: string,
-        f: (meeting: Meeting) => Meeting,
-    ): Promise<Meeting | undefined> => {
-        const meeting = await fetchMeetingOrUndefined(client, meetingCode);
-        if (meeting === undefined) {
-            return undefined;
-        } else {
-            const newMeeting = f(meeting);
-            await client.query(
-                "UPDATE meetings SET value = $2 WHERE meeting_code = $1",
-                [meetingCode, Meeting.encode(newMeeting)],
-            );
-            return newMeeting;
-        }
     };
 
     return {
         createMeeting: async (meeting: Meeting): Promise<boolean> => {
-            return withMeetingLock(meeting.meetingCode, async (client) => {
-                const {rowCount} = await client.query(
-                    `
-                        INSERT INTO meetings (meeting_code, value)
-                        VALUES ($1, $2)
-                        ON CONFLICT
-                        DO NOTHING
-                    `,
-                    [meeting.meetingCode, Meeting.encode(meeting)],
-                );
-                return rowCount >= 1;
-            });
+            return withMeetingLock(meeting.meetingCode, client => client.createMeeting(meeting));
         },
 
         fetchMeetingByMeetingCode: async (meetingCode: string) => {
-            return withMeetingLock(meetingCode, async (client) => {
-                return fetchMeetingOrUndefined(client, meetingCode);
-            });
+            return withMeetingLock(meetingCode, client => client.fetchMeeting());
         },
 
         updateMeetingByMeetingCode: async (meetingCode: string, f: (meeting: Meeting) => Meeting) => {
-            return withMeetingLock(meetingCode, async (client) => {
-                return updateMeetingByMeetingCodeNoLock(client, meetingCode, f);
-            });
+            return withMeetingLock(meetingCode, client => client.updateMeeting(f));
         },
 
         // TODO: session fetch/update needs locking? (or other concurrency handling)
@@ -153,7 +108,7 @@ export async function connect(url: string): Promise<Connection> {
             }
 
             await withTransaction(async (client) => {
-                const {rows} = await pool.query(
+                const {rows} = await client.query(
                     `
                         DELETE FROM sessions
                         WHERE last_alive < $1
@@ -166,11 +121,9 @@ export async function connect(url: string): Promise<Connection> {
                     // TODO: should this logic be in here? Not really about database interaction
                     // Pull out transaction abstraction?
                     const {meeting_code: meetingCode, member_id: memberId} = row as SessionRow;
-                    await acquireMeetingLock(client, meetingCode);
+                    const meetingClient = await client.acquireMeetingLock(meetingCode);
                     const update = Updates.leave({memberId});
-                    await updateMeetingByMeetingCodeNoLock(
-                        client,
-                        meetingCode,
+                    await meetingClient.updateMeeting(
                         meeting => applyUpdate(meeting, update),
                     );
                     sendToMeetingClients(meetingCode, update);
@@ -193,6 +146,72 @@ export async function connect(url: string): Promise<Connection> {
         close: async () => {
             await pool.end();
         },
+    };
+}
+
+interface TransactionClient {
+    acquireMeetingLock: (meetingCode: string) => Promise<MeetingTransactionClient>;
+    query: (query: string, args: Array<unknown>) => Promise<pg.QueryResult>;
+}
+
+interface MeetingTransactionClient {
+    createMeeting: (meeting: Meeting) => Promise<boolean>;
+    fetchMeeting: () => Promise<Meeting | undefined>;
+    updateMeeting: (f: (meeting: Meeting) => Meeting) => Promise<Meeting | undefined>;
+}
+
+function createTransactionClient(client: pg.PoolClient): TransactionClient {
+    return {
+        async acquireMeetingLock(meetingCode: string) {
+            await client.query("SELECT pg_advisory_xact_lock($1)", [meetingCodeToLockId(meetingCode)]);
+
+            return createMeetingTransactionClient(client, meetingCode);
+        },
+
+        query: (query, args) => client.query(query, args),
+    };
+}
+
+function createMeetingTransactionClient(client: pg.PoolClient, meetingCode: string): MeetingTransactionClient {
+    async function createMeeting(meeting: Meeting): Promise<boolean> {
+        const {rowCount} = await client.query(
+            `
+                INSERT INTO meetings (meeting_code, value)
+                VALUES ($1, $2)
+                ON CONFLICT
+                DO NOTHING
+            `,
+            [meeting.meetingCode, Meeting.encode(meeting)],
+        );
+        return rowCount >= 1;
+    }
+
+    async function fetchMeeting(): Promise<Meeting | undefined> {
+        const {rows} = await client.query(
+            "SELECT value FROM meetings WHERE meeting_code = $1",
+            [meetingCode],
+        );
+        return rows.length === 0 ? undefined : decodeMeeting(rows[0].value);
+    }
+
+    async function updateMeeting(f: (meeting: Meeting) => Meeting): Promise<Meeting | undefined> {
+        const meeting = await fetchMeeting();
+        if (meeting === undefined) {
+            return undefined;
+        } else {
+            const newMeeting = f(meeting);
+            await client.query(
+                "UPDATE meetings SET value = $2 WHERE meeting_code = $1",
+                [meetingCode, Meeting.encode(newMeeting)],
+            );
+            return newMeeting;
+        }
+    }
+
+    return {
+        createMeeting: createMeeting,
+        fetchMeeting: fetchMeeting,
+        updateMeeting: updateMeeting,
     };
 }
 
