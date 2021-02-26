@@ -15,7 +15,7 @@ export default function Page(props: PageProps) {
 
     return (
         <>
-            <Box position="sticky" top={0} zIndex={10000}>
+            <Box position="sticky" top={0} zIndex="dropdown">
                 <AppBar settingsMenuItems={settingsMenuItems} title={title} />
                 {stickyTop}
             </Box>
