@@ -120,13 +120,19 @@ export function createServer({port, databaseConnection}: {
         const connection = {clientWebSocket: ws};
         meetingConnections.add(connection);
 
-        let ponged = true;
-        ws.on("pong", () => ponged = true);
+        const updateSession = async () => {
+            await databaseConnection.updateSession({meetingCode, memberId, sessionId});
+        };
 
         let memberId = uuid.v4();
         let sessionId = uuid.v4();
+        await updateSession();
 
-        await databaseConnection.updateSession({meetingCode, memberId, sessionId});
+        let ponged = true;
+        ws.on("pong", () => {
+            ponged = true;
+            updateSession();
+        });
 
         const intervalId = setInterval(() => {
             if (!ponged) {
@@ -154,8 +160,10 @@ export function createServer({port, databaseConnection}: {
                     if (session === undefined) {
                         send(ws, ServerMessages.invalid(messageJson));
                     } else {
+                        // TODO: remove old session
                         memberId = session.memberId;
                         sessionId = session.sessionId;
+                        updateSession();
                         sendInitial();
                     }
                 } else {

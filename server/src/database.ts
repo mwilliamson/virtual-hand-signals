@@ -128,6 +128,8 @@ export async function connect(url: string): Promise<Connection> {
                 `
                     INSERT INTO sessions (meeting_code, member_id, session_id, last_alive)
                     VALUES ($1, $2, $3, $4)
+                    ON CONFLICT (session_id)
+                    DO UPDATE SET last_alive = excluded.last_alive
                 `,
                 [meetingCode, memberId, sessionId, Instant.now().toString()],
             );
