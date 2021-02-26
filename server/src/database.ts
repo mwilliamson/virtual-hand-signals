@@ -1,22 +1,19 @@
 import { isLeft } from "fp-ts/Either";
 import * as t from "io-ts";
-import { Duration, Instant } from "@js-joda/core";
+import { Instant } from "@js-joda/core";
 import * as pg from "pg";
 
-import { applyUpdate, Meeting, ServerMessage, Updates } from "./meetings";
+import { Meeting } from "./meetings";
 
 export interface Connection {
     close: () => Promise<void>;
+    withTransaction: <T>(f: (client: TransactionClient) => Promise<T>) => Promise<T>;
 
     createMeeting: (meeting: Meeting) => Promise<boolean>;
     fetchMeetingByMeetingCode: (meetingCode: string) => Promise<Meeting | undefined>;
     updateMeetingByMeetingCode: (meetingCode: string, f: (meeting: Meeting) => Meeting) => Promise<Meeting | undefined>;
 
     fetchSessionBySessionId: (sessionId: string) => Promise<Session | undefined>;
-    reapExpiredSessions: (args: {
-        sessionExpiration: Duration,
-        sendToMeetingClients: (meetingCode: string, message: ServerMessage) => void,
-    }) => Promise<void>;
     updateSession: (args: {meetingCode: string, memberId: string, sessionId: string}) => Promise<void>;
 }
 
@@ -99,25 +96,6 @@ export async function connect(url: string): Promise<Connection> {
             };
         },
 
-        reapExpiredSessions: async ({sessionExpiration, sendToMeetingClients}) => {
-            const minLastAlive = Instant.now().minus(sessionExpiration);
-
-            await withTransaction(async (client) => {
-                const rows = await client.deleteExpiredSessions(minLastAlive);
-                for (const row of rows) {
-                    // TODO: should this logic be in here? Not really about database interaction
-                    // Pull out transaction abstraction?
-                    const {meetingCode, memberId} = row;
-                    const meetingClient = await client.acquireMeetingLock(meetingCode);
-                    const update = Updates.leave({memberId});
-                    await meetingClient.updateMeeting(
-                        meeting => applyUpdate(meeting, update),
-                    );
-                    sendToMeetingClients(meetingCode, update);
-                }
-            });
-        },
-
         updateSession: async ({meetingCode, memberId, sessionId}: {meetingCode: string, memberId: string, sessionId: string}) => {
             await pool.query(
                 `
@@ -129,6 +107,8 @@ export async function connect(url: string): Promise<Connection> {
                 [meetingCode, memberId, sessionId, Instant.now().toString()],
             );
         },
+
+        withTransaction: withTransaction,
 
         close: async () => {
             await pool.end();

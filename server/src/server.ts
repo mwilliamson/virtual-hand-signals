@@ -7,7 +7,7 @@ import cryptoRandomString from "crypto-random-string";
 import express from "express";
 import { isLeft } from "fp-ts/Either";
 import * as t from "io-ts";
-import { Duration } from "@js-joda/core";
+import { Duration, Instant } from "@js-joda/core";
 import * as uuid from "uuid";
 import WebSocket from "ws";
 
@@ -218,8 +218,22 @@ export function createServer({port, databaseConnection}: {
         }
     });
 
+    // TODO: clearInterval on server close
     setInterval(() => {
-        databaseConnection.reapExpiredSessions({sessionExpiration, sendToMeetingClients});
+        const minLastAlive = Instant.now().minus(sessionExpiration);
+
+        databaseConnection.withTransaction(async (client) => {
+            const rows = await client.deleteExpiredSessions(minLastAlive);
+            for (const row of rows) {
+                const {meetingCode, memberId} = row;
+                const meetingClient = await client.acquireMeetingLock(meetingCode);
+                const update = Updates.leave({memberId});
+                await meetingClient.updateMeeting(
+                    meeting => applyUpdate(meeting, update),
+                );
+                sendToMeetingClients(meetingCode, update);
+            }
+        });
     }, reapInterval.toMillis());
 
     server.listen(port);
