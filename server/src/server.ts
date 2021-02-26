@@ -101,13 +101,17 @@ export function createServer({port, databaseConnection}: {
         client.send(JSON.stringify(ServerMessages.toJson(message)));
     }
 
+    function sendToMeetingClients(meetingCode: string, message: ServerMessage) {
+        const meetingConnections = connectionsByMeetingCode.get(meetingCode) ?? new Set();
+        meetingConnections.forEach(connection => send(connection.clientWebSocket, message));
+    }
+
     async function processUpdate(meetingCode: string, update: Update): Promise<void> {
         await databaseConnection.updateMeetingByMeetingCode(
             meetingCode,
             meeting => applyUpdate(meeting, update),
         );
-        const meetingConnections = connectionsByMeetingCode.get(meetingCode) ?? new Set();
-        meetingConnections.forEach(connection => send(connection.clientWebSocket, update));
+        sendToMeetingClients(meetingCode, update);
     }
 
     const initConnection = async (ws: WebSocket, initialMeeting: Meeting) => {
