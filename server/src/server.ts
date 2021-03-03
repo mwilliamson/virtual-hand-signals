@@ -35,11 +35,13 @@ export function createServer({port, databaseConnection}: {
     const reapInterval = Duration.ofSeconds(19);
     const sessionExpiration = Duration.ofSeconds(30);
 
-    interface Connection {
-        clientWebSocket: WebSocket;
-    }
+    const meetingSet = createMeetingSet({
+        databaseConnection,
+        send: sendServerMessage,
 
-    const connectionsByMeetingCode = new Map<string, Set<Connection>>();
+        reapInterval,
+        sessionExpiration,
+    });
 
     const app = express();
     app.use(express.json());
@@ -100,32 +102,18 @@ export function createServer({port, databaseConnection}: {
 
     const wss = new WebSocket.Server({noServer: true});
 
-    function send(client: WebSocket, message: ServerMessage): void {
-        client.send(JSON.stringify(ServerMessages.toJson(message)));
-    }
-
-    function sendToMeetingClients(meetingCode: string, message: ServerMessage) {
-        const meetingConnections = connectionsByMeetingCode.get(meetingCode) ?? new Set();
-        meetingConnections.forEach(connection => send(connection.clientWebSocket, message));
-    }
-
     async function processUpdate(meetingCode: string, update: Update): Promise<void> {
         await databaseConnection.updateMeetingByMeetingCode(
             meetingCode,
             meeting => applyUpdate(meeting, update),
         );
-        sendToMeetingClients(meetingCode, update);
+        meetingSet.sendToMeetingClients(meetingCode, update);
     }
 
     const initConnection = async (ws: WebSocket, initialMeeting: Meeting) => {
         const {meetingCode} = initialMeeting;
 
-        if (!connectionsByMeetingCode.has(meetingCode)) {
-            connectionsByMeetingCode.set(meetingCode, new Set());
-        }
-        const meetingConnections = connectionsByMeetingCode.get(meetingCode)!!;
-        const connection = {clientWebSocket: ws};
-        meetingConnections.add(connection);
+        meetingSet.addClient(meetingCode, ws);
 
         const updateSession = async () => {
             await databaseConnection.updateSession({meetingCode, memberId, sessionId});
@@ -151,7 +139,7 @@ export function createServer({port, databaseConnection}: {
         }, pingInterval.toMillis());
 
         const sendInitial = () => {
-            send(ws, ServerMessages.initial({meeting: initialMeeting, memberId, sessionId}));
+            sendServerMessage(ws, ServerMessages.initial({meeting: initialMeeting, memberId, sessionId}));
         };
 
         sendInitial();
@@ -159,13 +147,13 @@ export function createServer({port, databaseConnection}: {
         async function processMessageJson(messageJson: unknown): Promise<void> {
             const decodeResult = ClientMessage.decode(messageJson);
             if (isLeft(decodeResult)) {
-                send(ws, ServerMessages.invalid(messageJson));
+                sendServerMessage(ws, ServerMessages.invalid(messageJson));
             } else {
                 const message = decodeResult.right;
                 if (message.type === "v1/rejoin") {
                     const session = await databaseConnection.fetchSessionBySessionId(message.sessionId);
                     if (session === undefined) {
-                        send(ws, ServerMessages.invalid(messageJson));
+                        sendServerMessage(ws, ServerMessages.invalid(messageJson));
                     } else {
                         // TODO: remove old session
                         memberId = session.memberId;
@@ -180,7 +168,7 @@ export function createServer({port, databaseConnection}: {
         }
 
         ws.on("close", () => {
-            meetingConnections.delete(connection);
+            meetingSet.removeClient(meetingCode, ws);
             clearInterval(intervalId);
             processUpdate(meetingCode, Updates.leave({memberId}));
         });
@@ -197,7 +185,7 @@ export function createServer({port, databaseConnection}: {
             await databaseConnection.fetchMeetingByMeetingCode(meetingCode) ?? null;
 
         if (initialMeeting === null) {
-            send(ws, ServerMessages.notFound);
+            sendServerMessage(ws, ServerMessages.notFound);
             ws.close();
         } else {
             initConnection(ws, initialMeeting);
@@ -218,6 +206,44 @@ export function createServer({port, databaseConnection}: {
             });
         }
     });
+
+    server.on("close", () => {
+        meetingSet.close();
+    });
+
+    server.listen(port);
+
+    return server;
+}
+
+function createMeetingSet<Client>({databaseConnection, send, reapInterval, sessionExpiration}: {
+    databaseConnection: database.Connection,
+    send: (client: Client, message: ServerMessage) => void,
+
+    reapInterval: Duration,
+    sessionExpiration: Duration,
+}) {
+    const clientsByMeetingCode = new Map<string, Set<Client>>();
+
+    function addClient(meetingCode: string, client: Client): void {
+        getMeetingClients(meetingCode).add(client);
+    }
+
+    function removeClient(meetingCode: string, client: Client): void {
+        getMeetingClients(meetingCode).delete(client);
+    }
+
+    function getMeetingClients(meetingCode: string) {
+        if (!clientsByMeetingCode.has(meetingCode)) {
+            clientsByMeetingCode.set(meetingCode, new Set());
+        }
+        return clientsByMeetingCode.get(meetingCode)!!;
+    }
+
+    function sendToMeetingClients(meetingCode: string, message: ServerMessage) {
+        const meetingClients = clientsByMeetingCode.get(meetingCode) ?? new Set();
+        meetingClients.forEach(client => send(client, message));
+    }
 
     const reapSessionsIntervalId = setInterval(() => {
         const minLastAlive = Instant.now().minus(sessionExpiration);
@@ -244,13 +270,18 @@ export function createServer({port, databaseConnection}: {
         });
     }, reapInterval.toMillis());
 
-    server.on("close", () => {
-        clearInterval(reapSessionsIntervalId);
-    });
+    return {
+        addClient: addClient,
+        removeClient: removeClient,
+        close: () => {
+            clearInterval(reapSessionsIntervalId);
+        },
+        sendToMeetingClients: sendToMeetingClients,
+    };
+}
 
-    server.listen(port);
-
-    return server;
+function sendServerMessage(client: WebSocket, message: ServerMessage): void {
+    client.send(JSON.stringify(ServerMessages.toJson(message)));
 }
 
 function generateMeetingCode() {
