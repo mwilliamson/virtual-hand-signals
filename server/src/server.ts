@@ -93,31 +93,11 @@ export function createServer({port, databaseConnection}: {
 
     const wss = new WebSocket.Server({noServer: true});
 
-    async function processUpdate(meetingCode: string, update: Update): Promise<void> {
-        await databaseConnection.updateMeetingByMeetingCode(
-            meetingCode,
-            meeting => applyUpdate(meeting, update),
-        );
-        meetingSet.sendToMeetingClients(meetingCode, update);
-    }
-
-    const initConnection = async (ws: WebSocket, initialMeeting: Meeting) => {
-        const {meetingCode} = initialMeeting;
-
-        meetingSet.addClient(meetingCode, ws);
-
-        const updateSession = async () => {
-            await databaseConnection.updateSession({meetingCode, memberId, sessionId});
-        };
-
-        let memberId = uuid.v4();
-        let sessionId = uuid.v4();
-        await updateSession();
-
+    const initConnection = async (ws: WebSocket, session: Session) => {
         let ponged = true;
         ws.on("pong", () => {
             ponged = true;
-            updateSession();
+            session.update();
         });
 
         const intervalId = setInterval(() => {
@@ -129,39 +109,19 @@ export function createServer({port, databaseConnection}: {
             }
         }, pingInterval.toMillis());
 
-        const sendInitial = () => {
-            sendServerMessage(ws, ServerMessages.initial({meeting: initialMeeting, memberId, sessionId}));
-        };
-
-        sendInitial();
-
         async function processMessageJson(messageJson: unknown): Promise<void> {
             const decodeResult = ClientMessage.decode(messageJson);
             if (isLeft(decodeResult)) {
                 sendServerMessage(ws, ServerMessages.invalid(messageJson));
             } else {
                 const message = decodeResult.right;
-                if (message.type === "v1/rejoin") {
-                    const session = await databaseConnection.fetchSessionBySessionId(message.sessionId);
-                    if (session === undefined) {
-                        sendServerMessage(ws, ServerMessages.invalid(messageJson));
-                    } else {
-                        // TODO: remove old session
-                        memberId = session.memberId;
-                        sessionId = session.sessionId;
-                        updateSession();
-                        sendInitial();
-                    }
-                } else {
-                    await processUpdate(meetingCode, clientUpdateToUpdate(memberId, message));
-                }
+                await session.processMessage(message);
             }
         }
 
         ws.on("close", () => {
-            meetingSet.removeClient(meetingCode, ws);
+            session.end();
             clearInterval(intervalId);
-            processUpdate(meetingCode, Updates.leave({memberId}));
         });
 
         ws.on("message", function incoming(messageBuffer) {
@@ -172,14 +132,13 @@ export function createServer({port, databaseConnection}: {
 
     wss.on("connection", async function connection(ws, request) {
         const meetingCode = (request as any).meetingCode as string;
-        const initialMeeting: Meeting | null =
-            await databaseConnection.fetchMeetingByMeetingCode(meetingCode) ?? null;
+        const session = await meetingSet.startSession(meetingCode, ws);
 
-        if (initialMeeting === null) {
+        if (session === null) {
             sendServerMessage(ws, ServerMessages.notFound);
             ws.close();
         } else {
-            initConnection(ws, initialMeeting);
+            initConnection(ws, session);
         }
     });
 
@@ -207,6 +166,12 @@ export function createServer({port, databaseConnection}: {
     return server;
 }
 
+interface Session {
+    end: () => Promise<void>;
+    update: () => void;
+    processMessage: (message: ClientMessage) => Promise<void>;
+}
+
 function createMeetingSet<Client>({databaseConnection, send, reapInterval, sessionExpiration}: {
     databaseConnection: database.Connection,
     send: (client: Client, message: ServerMessage) => void,
@@ -226,14 +191,68 @@ function createMeetingSet<Client>({databaseConnection, send, reapInterval, sessi
         }
     }
 
-    const clientsByMeetingCode = new Map<string, Set<Client>>();
-
-    function addClient(meetingCode: string, client: Client): void {
-        getMeetingClients(meetingCode).add(client);
+    async function processUpdate(meetingCode: string, update: Update): Promise<void> {
+        await databaseConnection.updateMeetingByMeetingCode(
+            meetingCode,
+            meeting => applyUpdate(meeting, update),
+        );
+        sendToMeetingClients(meetingCode, update);
     }
 
-    function removeClient(meetingCode: string, client: Client): void {
-        getMeetingClients(meetingCode).delete(client);
+
+    const clientsByMeetingCode = new Map<string, Set<Client>>();
+
+    async function startSession(meetingCode: string, client: Client): Promise<Session | null> {
+        const initialMeeting = await databaseConnection.fetchMeetingByMeetingCode(meetingCode) ?? null;
+
+        if (initialMeeting === null) {
+            return null;
+        }
+
+        const meetingClients = getMeetingClients(meetingCode);
+        meetingClients.add(client);
+
+        const updateSession = async () => {
+            await databaseConnection.updateSession({meetingCode, memberId, sessionId});
+        };
+
+        let memberId = uuid.v4();
+        let sessionId = uuid.v4();
+        await updateSession();
+
+        const sendInitial = () => {
+            send(client, ServerMessages.initial({meeting: initialMeeting, memberId, sessionId}));
+        };
+
+        sendInitial();
+
+        async function processMessage(message: ClientMessage): Promise<void> {
+            if (message.type === "v1/rejoin") {
+                const session = await databaseConnection.fetchSessionBySessionId(message.sessionId);
+                if (session === undefined) {
+                    send(client, ServerMessages.invalid(message));
+                } else {
+                    // TODO: remove old session
+                    memberId = session.memberId;
+                    sessionId = session.sessionId;
+                    updateSession();
+                    sendInitial();
+                }
+            } else {
+                await processUpdate(meetingCode, clientUpdateToUpdate(memberId, message));
+            }
+        }
+
+        return {
+            end: async () => {
+                meetingClients.delete(client);
+                await processUpdate(meetingCode, Updates.leave({memberId}));
+            },
+
+            update: updateSession,
+
+            processMessage: processMessage,
+        };
     }
 
     function getMeetingClients(meetingCode: string) {
@@ -276,12 +295,10 @@ function createMeetingSet<Client>({databaseConnection, send, reapInterval, sessi
     return {
         addMeeting: addMeeting,
 
-        addClient: addClient,
-        removeClient: removeClient,
+        startSession: startSession,
         close: () => {
             clearInterval(reapSessionsIntervalId);
         },
-        sendToMeetingClients: sendToMeetingClients,
     };
 }
 
