@@ -60,17 +60,8 @@ export function createServer({port, databaseConnection}: {
             if (isLeft(bodyResult)) {
                 response.status(400).send();
             } else {
-                while (true) {
-                    const {hasQueue = false} = bodyResult.right ?? {};
-                    // TODO: extract meeting code creation
-                    const meetingCode = generateMeetingCode();
-                    const meeting = Meetings.create({meetingCode, hasQueue});
-
-                    if (await databaseConnection.createMeeting(meeting)) {
-                        response.send(Meeting.encode(meeting));
-                        return;
-                    }
-                }
+                const meeting = await meetingSet.addMeeting(bodyResult.right);
+                response.send(Meeting.encode(meeting));
             }
         } catch (error) {
             next(error);
@@ -223,6 +214,18 @@ function createMeetingSet<Client>({databaseConnection, send, reapInterval, sessi
     reapInterval: Duration,
     sessionExpiration: Duration,
 }) {
+    async function addMeeting({hasQueue = false}: {hasQueue?: boolean} = {}): Promise<Meeting> {
+        while (true) {
+            // TODO: extract meeting code creation
+            const meetingCode = generateMeetingCode();
+            const meeting = Meetings.create({meetingCode, hasQueue});
+
+            if (await databaseConnection.createMeeting(meeting)) {
+                return meeting;
+            }
+        }
+    }
+
     const clientsByMeetingCode = new Map<string, Set<Client>>();
 
     function addClient(meetingCode: string, client: Client): void {
@@ -271,6 +274,8 @@ function createMeetingSet<Client>({databaseConnection, send, reapInterval, sessi
     }, reapInterval.toMillis());
 
     return {
+        addMeeting: addMeeting,
+
         addClient: addClient,
         removeClient: removeClient,
         close: () => {
