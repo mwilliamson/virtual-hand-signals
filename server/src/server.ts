@@ -17,6 +17,7 @@ import {
     ServerMessage,
     ServerMessages,
 } from "./meetings";
+import { setUpWebSocketHeartbeat } from "./websockets";
 
 export function createServer({port, databaseConnection}: {
     port: number,
@@ -87,20 +88,11 @@ export function createServer({port, databaseConnection}: {
     const wss = new WebSocket.Server({noServer: true});
 
     const initConnection = async (ws: WebSocket, session: Session) => {
-        let ponged = true;
-        ws.on("pong", () => {
-            ponged = true;
-            session.update();
+        setUpWebSocketHeartbeat({
+            webSocket: ws,
+            pingInterval: pingInterval,
+            onHeartbeat: () => session.update(),
         });
-
-        const intervalId = setInterval(() => {
-            if (!ponged) {
-                ws.terminate();
-            } else {
-                ponged = false;
-                ws.ping();
-            }
-        }, pingInterval.toMillis());
 
         async function processMessageJson(messageJson: unknown): Promise<void> {
             const decodeResult = ClientMessage.decode(messageJson);
@@ -114,7 +106,6 @@ export function createServer({port, databaseConnection}: {
 
         ws.on("close", () => {
             session.end();
-            clearInterval(intervalId);
         });
 
         ws.on("message", function incoming(messageBuffer) {
