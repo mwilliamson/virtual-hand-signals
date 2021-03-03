@@ -94,7 +94,12 @@ export function createServer({port, databaseConnection}: {
             onHeartbeat: () => session.update(),
         });
 
-        async function processMessageJson(messageJson: unknown): Promise<void> {
+        ws.on("close", () => {
+            session.end();
+        });
+
+        ws.on("message", async function incoming(messageBuffer) {
+            const messageJson = JSON.parse(messageBuffer.toString());
             const decodeResult = ClientMessage.decode(messageJson);
             if (isLeft(decodeResult)) {
                 sendServerMessage(ws, ServerMessages.invalid(messageJson));
@@ -102,15 +107,6 @@ export function createServer({port, databaseConnection}: {
                 const message = decodeResult.right;
                 await session.processMessage(message);
             }
-        }
-
-        ws.on("close", () => {
-            session.end();
-        });
-
-        ws.on("message", function incoming(messageBuffer) {
-            const messageJson = JSON.parse(messageBuffer.toString());
-            processMessageJson(messageJson);
         });
     }
 
