@@ -18,6 +18,7 @@ import {
 
 interface MeetingManager<Client> {
     addMeeting: (args: {hasQueue?: boolean} | undefined) => Promise<Meeting>;
+    fetchMeetingByMeetingCode: (meetingCode: string) => Promise<Meeting | undefined>;
 
     startSession: (meetingCode: string, client: Client) => Promise<Session | null>;
 
@@ -151,6 +152,7 @@ export function createMeetingManager<Client>({databaseConnection, send, reapInte
 
     return {
         addMeeting: addMeeting,
+        fetchMeetingByMeetingCode: databaseConnection.fetchMeetingByMeetingCode.bind(database),
 
         startSession: startSession,
         close: () => {

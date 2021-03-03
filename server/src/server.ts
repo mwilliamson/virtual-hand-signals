@@ -64,7 +64,7 @@ export function createServer({port, databaseConnection}: {
     app.get("/api/meetings/:meetingCode", async (request, response, next) => {
         try {
             const {meetingCode} = request.params;
-            const meeting = await databaseConnection.fetchMeetingByMeetingCode(meetingCode);
+            const meeting = await meetingManager.fetchMeetingByMeetingCode(meetingCode);
             if (meeting === undefined) {
                 response.status(404).send();
             } else {
