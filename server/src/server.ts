@@ -11,6 +11,8 @@ import { Duration, Instant } from "@js-joda/core";
 import * as uuid from "uuid";
 import WebSocket from "ws";
 
+import * as database from "./database";
+import { toMultiMap } from "./iterables";
 import {
     applyUpdate,
     ClientMessage,
@@ -22,7 +24,6 @@ import {
     Update,
     Updates,
 } from "./meetings";
-import * as database from "./database";
 
 export function createServer({port, databaseConnection}: {
     port: number,
@@ -223,14 +224,22 @@ export function createServer({port, databaseConnection}: {
 
         databaseConnection.withTransaction(async (client) => {
             const rows = await client.deleteExpiredSessions(minLastAlive);
-            for (const row of rows) {
+            const updatesByMeetingCode = toMultiMap(rows.map(row => {
                 const {meetingCode, memberId} = row;
-                const meetingClient = await client.acquireMeetingLock(meetingCode);
                 const update = Updates.leave({memberId});
+                return [meetingCode, update];
+            }));
+            for (const [meetingCode, updates] of updatesByMeetingCode) {
+                const meetingClient = await client.acquireMeetingLock(meetingCode);
                 await meetingClient.updateMeeting(
-                    meeting => applyUpdate(meeting, update),
+                    meeting => updates.reduce(
+                        (currentMeeting, update) => applyUpdate(currentMeeting, update),
+                        meeting,
+                    ),
                 );
-                sendToMeetingClients(meetingCode, update);
+                for (const update of updates) {
+                    sendToMeetingClients(meetingCode, update);
+                }
             }
         });
     }, reapInterval.toMillis());
