@@ -35,7 +35,7 @@ export function createServer({port, databaseConnection}: {
     const reapInterval = Duration.ofSeconds(19);
     const sessionExpiration = Duration.ofSeconds(30);
 
-    const meetingSet = createMeetingSet({
+    const meetingManager = createMeetingManager({
         databaseConnection,
         send: sendServerMessage,
 
@@ -60,7 +60,7 @@ export function createServer({port, databaseConnection}: {
             if (isLeft(bodyResult)) {
                 response.status(400).send();
             } else {
-                const meeting = await meetingSet.addMeeting(bodyResult.right);
+                const meeting = await meetingManager.addMeeting(bodyResult.right);
                 response.send(Meeting.encode(meeting));
             }
         } catch (error) {
@@ -132,7 +132,7 @@ export function createServer({port, databaseConnection}: {
 
     wss.on("connection", async function connection(ws, request) {
         const meetingCode = (request as any).meetingCode as string;
-        const session = await meetingSet.startSession(meetingCode, ws);
+        const session = await meetingManager.startSession(meetingCode, ws);
 
         if (session === null) {
             sendServerMessage(ws, ServerMessages.notFound);
@@ -158,7 +158,7 @@ export function createServer({port, databaseConnection}: {
     });
 
     server.on("close", () => {
-        meetingSet.close();
+        meetingManager.close();
     });
 
     server.listen(port);
@@ -172,7 +172,7 @@ interface Session {
     processMessage: (message: ClientMessage) => Promise<void>;
 }
 
-function createMeetingSet<Client>({databaseConnection, send, reapInterval, sessionExpiration}: {
+function createMeetingManager<Client>({databaseConnection, send, reapInterval, sessionExpiration}: {
     databaseConnection: database.Connection,
     send: (client: Client, message: ServerMessage) => void,
 
