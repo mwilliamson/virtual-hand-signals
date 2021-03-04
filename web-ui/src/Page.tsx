@@ -4,7 +4,7 @@ import { AppBar } from "./AppBar";
 import PageContentContainer from "./PageContentContainer";
 
 export interface PageProps {
-    children: React.ReactNode;
+    children?: React.ReactNode;
     title?: React.ReactNode;
     settingsMenuItems?: React.ReactNode;
     stickyTop?: React.ReactNode;

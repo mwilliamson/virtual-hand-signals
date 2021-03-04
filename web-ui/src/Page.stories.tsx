@@ -1,3 +1,4 @@
+import { MenuItem } from "@chakra-ui/react";
 import React from "react";
 import { Story } from "@storybook/react";
 
@@ -14,13 +15,23 @@ const Template: Story<PageProps> = (args) => (
     <Page {...args} />
 );
 
-export const DefaultTitle = Template.bind({});
-DefaultTitle.args = {
+export const PageWithDefaultTitle = Template.bind({});
+PageWithDefaultTitle.args = {
     children: exampleText,
 };
 
-export const ExplicitTitle = Template.bind({});
-ExplicitTitle.args = {
+export const PageWithExplicitTitle = Template.bind({});
+PageWithExplicitTitle.args = {
     children: exampleText,
     title: "Page title",
+};
+
+export const PageWithSettingsMenu = Template.bind({});
+PageWithSettingsMenu.args = {
+    settingsMenuItems: (
+        <>
+            <MenuItem>Setting 1</MenuItem>
+            <MenuItem>Setting 2</MenuItem>
+        </>
+    ),
 };

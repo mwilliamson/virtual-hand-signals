@@ -4,7 +4,7 @@ import {
     FormLabel,
     Input,
     MenuItem,
- } from "@chakra-ui/react";
+} from "@chakra-ui/react";
 import { useState } from "react";
 
 import { Meeting } from "../../server/lib/meetings";
