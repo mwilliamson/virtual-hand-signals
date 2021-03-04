@@ -12,6 +12,9 @@ module.exports = {
     "@storybook/addon-essentials",
     "@storybook/preset-create-react-app"
   ],
+  typescript: {
+    check: true,
+  },
   webpackFinal: async (config) => {
     return {
       ...config,
