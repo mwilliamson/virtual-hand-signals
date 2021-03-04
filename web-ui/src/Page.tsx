@@ -3,7 +3,7 @@ import { Box } from "@chakra-ui/react";
 import { AppBar } from "./AppBar";
 import PageContentContainer from "./PageContentContainer";
 
-interface PageProps {
+export interface PageProps {
     children: React.ReactNode;
     title?: React.ReactNode;
     settingsMenuItems?: React.ReactNode;
