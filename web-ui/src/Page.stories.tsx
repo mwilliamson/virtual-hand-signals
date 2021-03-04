@@ -1,6 +1,4 @@
-import { ChakraProvider } from "@chakra-ui/react";
 import React, { ComponentProps } from "react";
-
 import { Story } from "@storybook/react";
 
 import Page from "./Page";
