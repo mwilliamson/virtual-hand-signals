@@ -1,5 +1,5 @@
 import { Box, Heading, Tab, TabList, TabPanel, TabPanels, Tabs } from "@chakra-ui/react";
-import { useHistory, useParams } from "react-router-dom";
+import { useHistory, useLocation } from "react-router-dom";
 
 import notFoundPageStories from "./NotFoundPage.stories";
 import pageStories from "./Page.stories";
@@ -17,70 +17,85 @@ interface Story {
 export default function Stories() {
     const storySets: Array<StorySet> = [notFoundPageStories, pageStories];
 
-    const {
-        storySetTitle: selectedStorySetTitle,
-        storyName: selectedStoryName,
-    } = useParams<{storySetTitle?: string, storyName?: string}>();
-    const history = useHistory();
-
-    const tabIndex = Math.max(0, storySets.findIndex(storySet => storySet.title === selectedStorySetTitle));
-
-    const handleTabIndexChange = (newIndex: number) => {
-        const storySet = storySets[newIndex];
-        history.push(`/stories/${storySet.title}`);
-    };
+    const tabs = storySets.map(storySet => ({
+        path: ["stories", storySet.title],
+        title: storySet.title,
+        node: (
+            <StorySetDisplay storySet={storySet} />
+        ),
+    }))
 
     return (
-        <Tabs orientation="vertical" index={tabIndex} onChange={handleTabIndexChange}>
-            <TabList>
-                {storySets.map(storySet => (
-                    <Tab key={storySet.title}>{storySet.title}</Tab>
-                ))}
-            </TabList>
-
-            <TabPanels>
-                {storySets.map(storySet => (
-                    <TabPanel key={storySet.title}>
-                        <StorySetDisplay storySet={storySet} selectedStoryName={selectedStoryName} />
-                    </TabPanel>
-                ))}
-            </TabPanels>
-        </Tabs>
-    );
+        <UrlTabs tabs={tabs} />
+    )
 }
 
 interface StorySetDisplayProps {
     storySet: StorySet;
-    selectedStoryName: string | undefined;
 }
 
 function StorySetDisplay(props: StorySetDisplayProps) {
-    const {storySet: selectedStorySet, selectedStoryName} = props;
+    const {storySet: selectedStorySet} = props;
+
+    const tabs = selectedStorySet.stories.map(story => ({
+        path: ["stories", selectedStorySet.title, story.name],
+        title: story.name,
+        node: (
+            <>
+                <Heading size="md">{selectedStorySet.title}: {story.name}</Heading>
+                <Viewport>
+                    {story.node}
+                </Viewport>
+            </>
+        ),
+    }));
+
+    return (
+        <UrlTabs tabs={tabs} />
+    );
+}
+
+interface UrlTab {
+    path: Array<string>;
+    title: string;
+    node: React.ReactNode;
+}
+
+interface UrlTabsProps {
+    tabs: Array<UrlTab>;
+}
+
+function UrlTabs(props: UrlTabsProps) {
+    const {tabs} = props;
 
     const history = useHistory();
+    const location = useLocation();
 
-    const tabIndex = Math.max(0, selectedStorySet.stories.findIndex(story => story.name === selectedStoryName));
+    const path = location.pathname;
+    const pathParts = path.slice(1).split("/");
+    const tabIndex = Math.max(0, tabs.findIndex(
+        tab => pathToString(pathParts.slice(0, tab.path.length)) === pathToString(tab.path),
+    ));
 
     const handleTabIndexChange = (newIndex: number) => {
-        const story = selectedStorySet.stories[newIndex];
-        history.push(`/stories/${selectedStorySet.title}/${story.name}`);
+        const tab = tabs[newIndex];
+        history.push(pathToString(tab.path));
     };
 
     return (
         <Tabs orientation="vertical" index={tabIndex} onChange={handleTabIndexChange}>
             <TabList>
-                {selectedStorySet.stories.map(story => (
-                    <Tab key={story.name}>{story.name}</Tab>
+                {tabs.map(tab => (
+                    <Tab key={pathToString(tab.path)}>
+                        {tab.title}
+                    </Tab>
                 ))}
             </TabList>
 
             <TabPanels>
-                {selectedStorySet.stories.map(story => (
-                    <TabPanel key={story.name}>
-                        <Heading size="md">{selectedStorySet.title}: {story.name}</Heading>
-                        <Viewport>
-                            {story.node}
-                        </Viewport>
+                {tabs.map(tab => (
+                    <TabPanel key={pathToString(tab.path)}>
+                        {tab.node}
                     </TabPanel>
                 ))}
             </TabPanels>
@@ -100,4 +115,8 @@ function Viewport(props: ViewportProps) {
             {children}
         </Box>
     );
+}
+
+function pathToString(path: Array<string>): string {
+    return "/" + path.join("/");
 }
