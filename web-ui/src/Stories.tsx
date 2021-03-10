@@ -1,4 +1,5 @@
-import { Box, Heading, Tab, TabList, TabPanel, TabPanels, Tabs } from "@chakra-ui/react";
+import { Box, Flex, Heading, Input, Tab, TabList, TabPanel, TabPanels, Tabs, Text } from "@chakra-ui/react";
+import { useState } from "react";
 import { useHistory, useLocation } from "react-router-dom";
 
 import notFoundPageStories from "./NotFoundPage.stories";
@@ -37,13 +38,39 @@ interface StorySetDisplayProps {
 function StorySetDisplay(props: StorySetDisplayProps) {
     const {storySet: selectedStorySet} = props;
 
+    const [viewportWidth, setViewportWidth] = useState(480);
+    const [viewportWidthText, setViewportWidthText] = useState(viewportWidth.toString());
+    const [viewportWidthHasError, setViewportWidthHasError] = useState(false);
+
+    function handleViewportChange(newWidth: string) {
+        setViewportWidthText(newWidth);
+        const isValidWidth = /^\d+$/.test(newWidth);
+        setViewportWidthHasError(!isValidWidth);
+        if (isValidWidth) {
+            setViewportWidth(parseInt(newWidth, 10));
+        }
+    }
+
     const tabs = selectedStorySet.stories.map(story => ({
         path: ["stories", selectedStorySet.title, story.name],
         title: story.name,
         node: (
             <>
-                <Heading size="md">{selectedStorySet.title}: {story.name}</Heading>
-                <Viewport>
+                <Flex alignItems="baseline">
+                    <Heading flex="1 1 auto" size="md">{selectedStorySet.title}: {story.name}</Heading>
+                    <Text as="label" mr={2} fontSize="sm">Viewport width</Text>
+                    <div>
+                            <Input
+                                errorBorderColor="crimson"
+                                focusBorderColor={viewportWidthHasError ? "crimson" : undefined}
+                                isInvalid={viewportWidthHasError}
+                                onChange={event => handleViewportChange(event.target.value)}
+                                size="sm"
+                                value={viewportWidthText}
+                            />
+                    </div>
+                </Flex>
+                <Viewport width={viewportWidth}>
                     {story.node}
                 </Viewport>
             </>
@@ -105,15 +132,18 @@ function UrlTabs(props: UrlTabsProps) {
 
 interface ViewportProps {
     children: React.ReactNode;
+    width: number;
 }
 
 function Viewport(props: ViewportProps) {
-    const {children} = props;
+    const {children, width} = props;
 
     return (
-        <Box padding={2} mt={2} mb={8} border="1px solid gray">
-            {children}
-        </Box>
+        <Flex justifyContent="center">
+            <Box mt={2} mb={8} border="2px solid gray" width={width} minHeight={600}>
+                {children}
+            </Box>
+        </Flex>
     );
 }
 
