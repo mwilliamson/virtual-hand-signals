@@ -85,7 +85,48 @@ suite(__filename, function () {
             });
         });
     });
+
+    suite("setHandSignal", function () {
+        test("when queue is empty then raising hand puts member to front of queue", function () {
+            let meeting = createMeetingWithMemberIds(["A", "B"]);
+            meeting = addMember(meeting, "A");
+            meeting = addMember(meeting, "B");
+
+            const result = applyUpdate(meeting, Updates.setHandSignal({memberId: "A", handSignal: "direct response"}));
+
+            assert.deepStrictEqual(result.queue!!.toJSON(), ["A"]);
+        });
+
+        test("when queue contains hand signal then raising same hand signal adds member to back of queue", function () {
+            let meeting = createMeetingWithMemberIds(["A", "B"]);
+            meeting = addMember(meeting, "A");
+            meeting = addMember(meeting, "B");
+            meeting = applyUpdate(meeting, Updates.setHandSignal({memberId: "B", handSignal: "direct response"}));
+
+            const result = applyUpdate(meeting, Updates.setHandSignal({memberId: "A", handSignal: "direct response"}));
+
+            assert.deepStrictEqual(result.queue!!.toJSON(), ["B", "A"]);
+        });
+    });
 });
+
+function createMeetingWithMemberIds(memberIds: Array<string>): Meeting {
+    let meeting = createEmptyMeetingWithQueue();
+
+    for (const memberId of memberIds) {
+        meeting = addMember(meeting, memberId);
+    }
+
+    return meeting;
+}
+
+function createEmptyMeetingWithQueue(): Meeting {
+    return createMeeting({members: OrderedMap(), queue: List()});
+}
+
+function addMember(meeting: Meeting, memberId: string): Meeting {
+    return applyUpdate(meeting, Updates.join({memberId: memberId, name: `Name of ${memberId}`}));
+}
 
 function createMeeting(meeting: Partial<Meeting>): Meeting {
     return {
