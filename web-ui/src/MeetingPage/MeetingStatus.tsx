@@ -11,7 +11,7 @@ import {
 import PersonIcon from "@material-ui/icons/Person";
 import { List, Seq } from "immutable";
 
-import { Meeting, Member } from "server/lib/meetings";
+import { Meeting, Meetings, Member } from "server/lib/meetings";
 
 interface MeetingStatusProps {
     meeting: Meeting;
@@ -21,7 +21,9 @@ interface MeetingStatusProps {
 export default function MeetingStatus(props: MeetingStatusProps) {
     const {meeting, member} = props;
 
-    if (meeting.queue === null) {
+    const queue = Meetings.getQueue(meeting);
+
+    if (queue === null) {
         return (
             <MembersList members={meeting.members.valueSeq()} memberId={member.memberId} />
         );
@@ -34,7 +36,7 @@ export default function MeetingStatus(props: MeetingStatusProps) {
                 </TabList>
                 <TabPanels>
                     <TabPanel>
-                        <Queue meeting={meeting} memberId={member.memberId} queue={meeting.queue} />
+                        <Queue meeting={meeting} memberId={member.memberId} queue={queue} />
                     </TabPanel>
                     <TabPanel>
                         <MembersList members={meeting.members.valueSeq()} memberId={member.memberId} />

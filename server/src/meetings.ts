@@ -19,16 +19,15 @@ const Member = t.strict({
 export interface Meeting {
     meetingCode: string;
     members: OrderedMap<string, Member>;
-    queue: null | List<string>;
+    hasQueue: boolean,
+    handRaiseOrder: List<string>;
 }
 
 export const Meeting = t.strict({
     meetingCode: t.string,
     members: immutableT.orderedMap(t.string, Member),
-    queue: t.union([
-        t.null,
-        immutableT.list(t.string),
-    ]),
+    hasQueue: t.boolean,
+    handRaiseOrder: immutableT.list(t.string),
 });
 
 export const Meetings = {
@@ -36,8 +35,13 @@ export const Meetings = {
         return {
             meetingCode: meetingCode,
             members: OrderedMap(),
-            queue: hasQueue ? List() : null,
+            hasQueue: hasQueue,
+            handRaiseOrder: List(),
         };
+    },
+
+    getQueue(meeting: Meeting): List<string> | null {
+        return meeting.hasQueue ? meeting.handRaiseOrder : null;
     },
 
     updateMemberByMemberId(meeting: Meeting, memberId: string, update: (member: Member) => Member): Meeting {
@@ -167,9 +171,7 @@ export function applyUpdate(meeting: Meeting, update: Update): Meeting {
         return {
             ...meeting,
             members: meeting.members.delete(update.memberId),
-            queue: meeting.queue === null
-                ? null
-                : meeting.queue.filter(memberId => memberId !== update.memberId),
+            handRaiseOrder: meeting.handRaiseOrder.filter(memberId => memberId !== update.memberId),
         };
     } else if (update.type === "v1/setName") {
         return Meetings.updateMemberByMemberId(meeting, update.memberId, member => ({
@@ -182,17 +184,15 @@ export function applyUpdate(meeting: Meeting, update: Update): Meeting {
             handSignal: update.handSignal,
         }));
 
-        if (meeting.queue === null) {
-            return meeting;
-        } else if (update.handSignal === null) {
+        if (update.handSignal === null) {
             return {
                 ...meeting,
-                queue: meeting.queue.filter(memberId => update.memberId !== memberId),
+                handRaiseOrder: meeting.handRaiseOrder.filter(memberId => update.memberId !== memberId),
             };
-        } else if (!meeting.queue.includes(update.memberId))  {
+        } else if (!meeting.handRaiseOrder.includes(update.memberId))  {
             return {
                 ...meeting,
-                queue: meeting.queue.push(update.memberId),
+                handRaiseOrder: meeting.handRaiseOrder.push(update.memberId),
             };
         } else {
             return meeting;

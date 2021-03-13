@@ -2,7 +2,7 @@ import assert from "assert";
 
 import { List, OrderedMap } from "immutable";
 
-import { applyUpdate, Meeting, Updates } from "../lib/meetings";
+import { applyUpdate, Meeting, Meetings, Updates } from "../lib/meetings";
 
 suite(__filename, function () {
     suite("applyUpdate", function () {
@@ -73,7 +73,7 @@ suite(__filename, function () {
             });
 
             test("when memberId is in queue then leaving removes member", function () {
-                const meeting = createMeeting({members: OrderedMap(), queue: List()});
+                const meeting = createEmptyMeetingWithQueue();
 
                 let result = applyUpdate(meeting, Updates.join({memberId: "1", name: "Alice"}));
                 result = applyUpdate(result, Updates.join({memberId: "2", name: "Bob"}));
@@ -81,7 +81,7 @@ suite(__filename, function () {
                 result = applyUpdate(result, Updates.setHandSignal({memberId: "2", handSignal: "clarification"}));
                 result = applyUpdate(result, Updates.leave({memberId: "1"}));
 
-                assert.deepStrictEqual(result.queue!!.toJSON(), ["2"]);
+                assert.deepStrictEqual(Meetings.getQueue(result)!!.toJSON(), ["2"]);
             });
         });
     });
@@ -94,7 +94,7 @@ suite(__filename, function () {
 
             const result = applyUpdate(meeting, Updates.setHandSignal({memberId: "A", handSignal: "direct response"}));
 
-            assert.deepStrictEqual(result.queue!!.toJSON(), ["A"]);
+            assert.deepStrictEqual(Meetings.getQueue(result)!!.toJSON(), ["A"]);
         });
 
         test("when queue contains hand signal then raising same hand signal adds member to back of queue", function () {
@@ -105,7 +105,7 @@ suite(__filename, function () {
 
             const result = applyUpdate(meeting, Updates.setHandSignal({memberId: "A", handSignal: "direct response"}));
 
-            assert.deepStrictEqual(result.queue!!.toJSON(), ["B", "A"]);
+            assert.deepStrictEqual(Meetings.getQueue(result)!!.toJSON(), ["B", "A"]);
         });
     });
 });
@@ -121,7 +121,7 @@ function createMeetingWithMemberIds(memberIds: Array<string>): Meeting {
 }
 
 function createEmptyMeetingWithQueue(): Meeting {
-    return createMeeting({members: OrderedMap(), queue: List()});
+    return createMeeting({members: OrderedMap(), handRaiseOrder: List(), hasQueue: true});
 }
 
 function addMember(meeting: Meeting, memberId: string): Meeting {
@@ -132,7 +132,8 @@ function createMeeting(meeting: Partial<Meeting>): Meeting {
     return {
         meetingCode: "<meetingCode>",
         members: OrderedMap(),
-        queue: List(),
+        handRaiseOrder: List(),
+        hasQueue: true,
         ...meeting,
     };
 }

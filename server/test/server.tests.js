@@ -42,7 +42,7 @@ suite(__filename, function() {
         const response = await server.get(`/api/meetings/${meetingCode}`);
 
         assert.strictEqual(response.status, 200);
-        assert.strictEqual(response.data.queue, null);
+        assert.strictEqual(response.data.hasQueue, false);
     }));
 
     test("meeting can be created with queue", withServer(async (server) => {
@@ -51,7 +51,7 @@ suite(__filename, function() {
         const response = await server.get(`/api/meetings/${meetingCode}`);
 
         assert.strictEqual(response.status, 200);
-        assert.deepStrictEqual(response.data.queue, []);
+        assert.strictEqual(response.data.hasQueue, true);
     }));
 
     test("POSTing to /api/meetings creates meeting that can be joined", withServer(async (server) => {
