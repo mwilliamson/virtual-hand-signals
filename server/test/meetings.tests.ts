@@ -107,6 +107,28 @@ suite(__filename, function () {
 
             assert.deepStrictEqual(Meetings.getQueue(result)!!.toJSON(), ["B", "A"]);
         });
+
+        test("when queue contains hand signal then raising hand signal with lower precedence adds member to back of queue", function () {
+            let meeting = createMeetingWithMemberIds(["A", "B"]);
+            meeting = addMember(meeting, "A");
+            meeting = addMember(meeting, "B");
+            meeting = applyUpdate(meeting, Updates.setHandSignal({memberId: "B", handSignal: "clarification"}));
+
+            const result = applyUpdate(meeting, Updates.setHandSignal({memberId: "A", handSignal: "direct response"}));
+
+            assert.deepStrictEqual(Meetings.getQueue(result)!!.toJSON(), ["B", "A"]);
+        });
+
+        test("when queue contains hand signal then raising hand signal with higher precedence adds member to front of queue", function () {
+            let meeting = createMeetingWithMemberIds(["A", "B"]);
+            meeting = addMember(meeting, "A");
+            meeting = addMember(meeting, "B");
+            meeting = applyUpdate(meeting, Updates.setHandSignal({memberId: "B", handSignal: "direct response"}));
+
+            const result = applyUpdate(meeting, Updates.setHandSignal({memberId: "A", handSignal: "clarification"}));
+
+            assert.deepStrictEqual(Meetings.getQueue(result)!!.toJSON(), ["A", "B"]);
+        });
     });
 });
 

@@ -1,4 +1,4 @@
-import { List, OrderedMap, updateIn } from "immutable";
+import { List, Map, OrderedMap, updateIn } from "immutable";
 import * as t from "io-ts";
 
 import * as immutableT from "./immutable-io-ts";
@@ -40,8 +40,28 @@ export const Meetings = {
         };
     },
 
+    getHandSignal(meeting: Meeting, memberId: string): string | null {
+        const member = meeting.members.get(memberId);
+        if (member === undefined) {
+            return null;
+        } else {
+            return member.handSignal
+        }
+    },
+
     getQueue(meeting: Meeting): List<string> | null {
-        return meeting.hasQueue ? meeting.handRaiseOrder : null;
+        if (meeting.hasQueue) {
+            return meeting.handRaiseOrder.sortBy(memberId => {
+                let precedence = undefined;
+                const handSignal = Meetings.getHandSignal(meeting, memberId);
+                if (handSignal !== null) {
+                    precedence = handSignalPrecedence.get(handSignal);
+                }
+                return -(precedence ?? handSignalMinPrecedence);
+            });
+        } else {
+            return null;
+        }
     },
 
     updateMemberByMemberId(meeting: Meeting, memberId: string, update: (member: Member) => Member): Meeting {
@@ -54,14 +74,21 @@ export const Meetings = {
     },
 };
 
-export const handSignals = [
-    "agree",
-    "disagree",
-    "want to talk",
-    "direct response",
-    "clarification",
-    "point of order",
+const handSignalsGroupedByPrecedence = [
+    ["point of order"],
+    ["clarification"],
+    ["direct response"],
+    ["agree", "disagree"],
+    ["want to talk"],
 ];
+
+export const handSignals = handSignalsGroupedByPrecedence.flat();
+
+const handSignalPrecedence = Map(handSignalsGroupedByPrecedence.flatMap(
+    (handSignalGroup, index) => handSignalGroup.map((handSignal): [string, number] => [handSignal, -index]),
+));
+
+const handSignalMinPrecedence = -handSignals.length;
 
 export type Update =
     | {type: "v1/join", memberId: string, name: string}
