@@ -49,16 +49,20 @@ export const Meetings = {
         }
     },
 
+    getQueuePrecedence(meeting: Meeting, memberId: string): number {
+        let precedence = undefined;
+        const handSignal = Meetings.getHandSignal(meeting, memberId);
+        if (handSignal !== null) {
+            precedence = handSignalPrecedence.get(handSignal);
+        }
+        return precedence ?? handSignalMinPrecedence;
+    },
+
     getQueue(meeting: Meeting): List<string> | null {
         if (meeting.hasQueue) {
-            return meeting.handRaiseOrder.sortBy(memberId => {
-                let precedence = undefined;
-                const handSignal = Meetings.getHandSignal(meeting, memberId);
-                if (handSignal !== null) {
-                    precedence = handSignalPrecedence.get(handSignal);
-                }
-                return -(precedence ?? handSignalMinPrecedence);
-            });
+            return meeting.handRaiseOrder.sortBy(
+                memberId => -Meetings.getQueuePrecedence(meeting, memberId),
+            );
         } else {
             return null;
         }
